@@ -2,6 +2,7 @@ import Fastify, { FastifyInstance, FastifyServerOptions } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
 import { config } from './index';
 import { logger } from '../utils/logger';
 import { errorHandler } from '../middlewares/error.middleware';
@@ -30,9 +31,17 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
   });
 
   await app.register(rateLimit, {
-    global: false, 
+    global: false,
     max: 100,
     timeWindow: '1 minute',
+  });
+
+  // 固件上传（multipart/form-data），文件大小上限由 config.firmware.maxSize 控制
+  await app.register(multipart, {
+    limits: {
+      fileSize: config.firmware.maxSize,
+      fields: 10,
+    },
   });
 
   app.setErrorHandler(errorHandler);

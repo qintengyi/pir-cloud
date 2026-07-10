@@ -21,7 +21,12 @@ export const ROUTE_PATHS = {
   ADMIN_USERS: '/admin/users',
   ADMIN_ORDERS: '/admin/orders',
   ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_FIRMWARE: '/admin/firmware',
+  FLASH: '/flash',
 } as const;
+
+/** QQ 验证机器人 QQ 号 */
+export const BOT_QQ = '2472900895';
 
 /** 事件类型映射 */
 export const EVENT_TYPE_MAP: Record<string, { label: string; color: 'success' | 'error' | 'default' | 'warning' }> = {
@@ -86,6 +91,7 @@ export const PAGE_SIZE_OPTIONS = [20, 50, 100];
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: 'pir_cloud_access_token',
   REFRESH_TOKEN: 'pir_cloud_refresh_token',
+  USER_INFO: 'pir_cloud_user_info',
 } as const;
 
 /** 主题色配置 */

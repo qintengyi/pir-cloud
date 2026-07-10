@@ -9,6 +9,8 @@ vi.mock('../src/config/prisma', () => {
     },
     deviceConfig: {
       findUnique: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
     },
     activationCode: {
       findUnique: vi.fn(),
@@ -152,8 +154,8 @@ describe('ReportService', () => {
       });
 
       expect(result.message).toBe('上报成功');
-      // Should NOT have queried device config or debounce
-      expect(mockedPrisma.deviceConfig.findUnique).not.toHaveBeenCalled();
+      // absence 现在需要读取 config 以判断是否开启稳定后推送模式
+      expect(mockedPrisma.deviceConfig.findUnique).toHaveBeenCalled();
       expect(mockedDebounce.shouldTrigger).not.toHaveBeenCalled();
       expect(mockedPrisma.event.create).not.toHaveBeenCalled();
     });

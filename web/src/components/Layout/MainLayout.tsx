@@ -25,6 +25,7 @@ import {
   Logout as LogoutIcon,
   AdminPanelSettings as AdminIcon,
   ChevronLeft as ChevronLeftIcon,
+  Memory as FlashIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthStore } from '../../store/auth.store';
@@ -37,6 +38,7 @@ const navItems = [
   { path: ROUTE_PATHS.DEVICES, label: '设备管理', icon: <DevicesIcon /> },
   { path: ROUTE_PATHS.ALARMS, label: '告警历史', icon: <AlarmIcon /> },
   { path: ROUTE_PATHS.NOTIFICATIONS, label: '通知配置', icon: <NotificationIcon /> },
+  { path: ROUTE_PATHS.FLASH, label: '刷写固件', icon: <FlashIcon /> },
   { path: ROUTE_PATHS.PROFILE, label: '个人中心', icon: <PersonIcon /> },
 ];
 

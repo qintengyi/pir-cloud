@@ -26,6 +26,8 @@ function toUserPublicInfo(user: any): UserPublicInfo {
     membershipLevel,
     membershipExpireAt: user.membership_expire_at ? user.membership_expire_at.toISOString() : null,
     qqNumber: user.qq_number,
+    qqVerified: !!user.qq_verified,
+    qqVerifiedAt: user.qq_verified_at ? user.qq_verified_at.toISOString() : null,
     createdAt: user.created_at.toISOString(),
   };
 }
@@ -121,6 +123,8 @@ export class UserService {
     level: string;
     expireAt: string | null;
     qqBound: boolean;
+    qqVerified: boolean;
+    qqVerifiedAt: string | null;
     isExpired: boolean;
   }> {
     const user = await prisma.user.findUnique({
@@ -129,6 +133,8 @@ export class UserService {
         membership_level: true,
         membership_expire_at: true,
         qq_number: true,
+        qq_verified: true,
+        qq_verified_at: true,
       },
     });
 
@@ -148,6 +154,8 @@ export class UserService {
       level: isExpired ? 'free' : user.membership_level,
       expireAt: user.membership_expire_at ? user.membership_expire_at.toISOString() : null,
       qqBound: !!user.qq_number,
+      qqVerified: !!user.qq_verified,
+      qqVerifiedAt: user.qq_verified_at ? user.qq_verified_at.toISOString() : null,
       isExpired,
     };
   }
@@ -161,7 +169,11 @@ export class UserService {
   async updateQQ(userId: number, qqNumber: string): Promise<UserPublicInfo> {
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { qq_number: qqNumber },
+      data: {
+        qq_number: qqNumber,
+        qq_verified: false,
+        qq_verified_at: null,
+      },
     });
 
     logger.info({ userId, qqNumber }, 'User QQ number updated');

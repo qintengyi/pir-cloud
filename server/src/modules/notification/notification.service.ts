@@ -58,6 +58,7 @@ class NotificationServiceClass {
         select: {
           email: true,
           qq_number: true,
+          qq_verified: true,
           membership_level: true,
           membership_expire_at: true,
         },
@@ -86,6 +87,11 @@ class NotificationServiceClass {
 
           if (!user.qq_number) {
             logger.info({ userId: device.user_id }, 'User has no QQ number bound, skipping QQ notification');
+            continue;
+          }
+
+          if (!user.qq_verified) {
+            logger.info({ userId: device.user_id, qqNumber: user.qq_number }, 'User QQ number is not verified, skipping QQ notification');
             continue;
           }
 
@@ -122,6 +128,16 @@ class NotificationServiceClass {
         logger.info({ email, deviceId: device.id }, 'Online remind email sent successfully');
       } else {
         logger.error({ email, deviceId: device.id, error: result.error }, 'Online remind email send failed');
+      }
+      return;
+    }
+
+    if (event.detail?.subtype === 'stable_warmup_complete') {
+      const result = await EmailService.sendStableWarmupCompleteEmail(email, device.name, event.created_at);
+      if (result.success) {
+        logger.info({ email, deviceId: device.id }, 'Stable warmup complete email sent successfully');
+      } else {
+        logger.error({ email, deviceId: device.id, error: result.error }, 'Stable warmup complete email send failed');
       }
       return;
     }
@@ -165,6 +181,11 @@ class NotificationServiceClass {
     if (event.detail?.subtype === 'online_remind') {
       const remindMessage = `[心跳]\n设备:${device.name}\n时间:${formattedTime}`;
       return OneBotService.sendMessage(qqNumber, remindMessage);
+    }
+
+    if (event.detail?.subtype === 'stable_warmup_complete') {
+      const warmupMessage = `[预热完成]\n设备:${device.name}\n时间:${formattedTime}\n稳定后推送模式已生效，后续将正常推送有人信息`;
+      return OneBotService.sendMessage(qqNumber, warmupMessage);
     }
 
     const tag =

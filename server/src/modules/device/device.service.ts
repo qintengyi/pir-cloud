@@ -89,6 +89,9 @@ export class DeviceService {
             onlineRemindEnabled: device.config.online_remind_enabled,
             onlineRemindIntervalMinutes: device.config.online_remind_interval_minutes,
             lastOnlineRemindAt: device.config.last_online_remind_at?.toISOString() || null,
+            stableAfterOnlineEnabled: device.config.stable_after_online_enabled,
+            stableWarmupStartedAt: device.config.stable_warmup_started_at?.toISOString() || null,
+            stableWarmupCompletedAt: device.config.stable_warmup_completed_at?.toISOString() || null,
           }
         : null,
     };
@@ -278,6 +281,9 @@ export class DeviceService {
         onlineRemindEnabled: config.online_remind_enabled,
         onlineRemindIntervalMinutes: config.online_remind_interval_minutes,
         lastOnlineRemindAt: config.last_online_remind_at?.toISOString() || null,
+        stableAfterOnlineEnabled: config.stable_after_online_enabled,
+        stableWarmupStartedAt: config.stable_warmup_started_at?.toISOString() || null,
+        stableWarmupCompletedAt: config.stable_warmup_completed_at?.toISOString() || null,
       };
     }
 
@@ -288,6 +294,9 @@ export class DeviceService {
       onlineRemindEnabled: device.config.online_remind_enabled,
       onlineRemindIntervalMinutes: device.config.online_remind_interval_minutes,
       lastOnlineRemindAt: device.config.last_online_remind_at?.toISOString() || null,
+      stableAfterOnlineEnabled: device.config.stable_after_online_enabled,
+      stableWarmupStartedAt: device.config.stable_warmup_started_at?.toISOString() || null,
+      stableWarmupCompletedAt: device.config.stable_warmup_completed_at?.toISOString() || null,
     };
   }
 
@@ -307,6 +316,7 @@ export class DeviceService {
       notifyChannels?: NotifyChannel[];
       onlineRemindEnabled?: boolean;
       onlineRemindIntervalMinutes?: number;
+      stableAfterOnlineEnabled?: boolean;
     },
   ) {
     const device = await prisma.device.findFirst({
@@ -340,6 +350,9 @@ export class DeviceService {
           notify_channels: (config.notifyChannels || ['email']) as any,
           online_remind_enabled: config.onlineRemindEnabled ?? false,
           online_remind_interval_minutes: config.onlineRemindIntervalMinutes ?? 360,
+          stable_after_online_enabled: config.stableAfterOnlineEnabled ?? false,
+          stable_warmup_started_at: config.stableAfterOnlineEnabled ? new Date() : null,
+          stable_warmup_completed_at: null,
 
           last_online_remind_at: config.onlineRemindEnabled ? new Date() : null,
         },
@@ -352,6 +365,9 @@ export class DeviceService {
         onlineRemindEnabled: newConfig.online_remind_enabled,
         onlineRemindIntervalMinutes: newConfig.online_remind_interval_minutes,
         lastOnlineRemindAt: newConfig.last_online_remind_at?.toISOString() || null,
+        stableAfterOnlineEnabled: newConfig.stable_after_online_enabled,
+        stableWarmupStartedAt: newConfig.stable_warmup_started_at?.toISOString() || null,
+        stableWarmupCompletedAt: newConfig.stable_warmup_completed_at?.toISOString() || null,
       };
     }
 
@@ -360,6 +376,11 @@ export class DeviceService {
     if (config.debounceInterval !== undefined) updateData.debounce_interval = config.debounceInterval;
     if (config.notifyChannels !== undefined) updateData.notify_channels = config.notifyChannels as any;
     if (config.onlineRemindIntervalMinutes !== undefined) updateData.online_remind_interval_minutes = config.onlineRemindIntervalMinutes;
+    if (config.stableAfterOnlineEnabled !== undefined) {
+      updateData.stable_after_online_enabled = config.stableAfterOnlineEnabled;
+      updateData.stable_warmup_started_at = config.stableAfterOnlineEnabled ? new Date() : null;
+      updateData.stable_warmup_completed_at = null;
+    }
 
     const shouldResetOnlineRemindTimer =
       config.onlineRemindEnabled === true ||
@@ -387,6 +408,9 @@ export class DeviceService {
       onlineRemindEnabled: updated.online_remind_enabled,
       onlineRemindIntervalMinutes: updated.online_remind_interval_minutes,
       lastOnlineRemindAt: updated.last_online_remind_at?.toISOString() || null,
+      stableAfterOnlineEnabled: updated.stable_after_online_enabled,
+      stableWarmupStartedAt: updated.stable_warmup_started_at?.toISOString() || null,
+      stableWarmupCompletedAt: updated.stable_warmup_completed_at?.toISOString() || null,
     };
   }
 

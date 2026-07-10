@@ -38,6 +38,7 @@ export const updateDeviceConfigSchema = {
       },
       onlineRemindEnabled: { type: 'boolean' },
       onlineRemindIntervalMinutes: { type: 'integer', minimum: 1, maximum: 10080 },
+      stableAfterOnlineEnabled: { type: 'boolean' },
     },
     additionalProperties: false,
   },

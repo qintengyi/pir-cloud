@@ -18,33 +18,47 @@ interface AuthState {
   restoreFromStorage: () => void;
 }
 
+// 初始化时立即从 localStorage 恢复状态
+const getInitialState = () => {
+  const accessToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+  const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+  const userJson = localStorage.getItem(STORAGE_KEYS.USER_INFO);
+  let user: UserPublicInfo | null = null;
+  if (userJson) {
+    try {
+      user = JSON.parse(userJson);
+    } catch {
+      // ignore parse error
+    }
+  }
+  const isAuthenticated = !!(accessToken && refreshToken);
+  return { accessToken, refreshToken, user, isAuthenticated };
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
-  refreshToken: null,
-  user: null,
-  isAuthenticated: false,
+  ...getInitialState(),
 
   setAuth: (accessToken, refreshToken, user) => {
     localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
     localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+    localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(user));
     set({ accessToken, refreshToken, user, isAuthenticated: true });
   },
 
   updateUser: (user) => {
+    localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(user));
     set({ user });
   },
 
   clearAuth: () => {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER_INFO);
     set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
   },
 
   restoreFromStorage: () => {
-    const accessToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-    if (accessToken && refreshToken) {
-      set({ accessToken, refreshToken, isAuthenticated: true });
-    }
+    const state = getInitialState();
+    set(state);
   },
 }));

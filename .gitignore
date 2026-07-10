@@ -1,6 +1,51 @@
-﻿node_modules/
+# Dependencies
+node_modules/
+
+# Build output
 dist/
+build/
+
+# Environment variables (keep .env.example)
 .env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
 *.log
+logs/
+
+# Test coverage
 coverage/
+
+# PlatformIO / Arduino
 .pio/
+
+# Firmware binary storage
+firmware_store/
+*.bin
+!pir-cloud-firmware-main/**/*.bin
+
+# Secrets / certificates
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backups
+*.bak
+*.bak.*
+dist.bak.*

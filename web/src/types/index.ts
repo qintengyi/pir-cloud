@@ -50,6 +50,8 @@ export interface UserPublicInfo {
   membershipLevel: MembershipLevel;
   membershipExpireAt: string | null;
   qqNumber: string | null;
+  qqVerified: boolean;
+  qqVerifiedAt: string | null;
   createdAt: string;
 }
 
@@ -71,6 +73,8 @@ export interface MembershipInfo {
   level: MembershipLevel;
   expireAt: string | null;
   qqBound: boolean;
+  qqVerified: boolean;
+  qqVerifiedAt: string | null;
   isExpired: boolean;
 }
 
@@ -97,6 +101,9 @@ export interface DeviceConfig {
   onlineRemindEnabled: boolean;
   onlineRemindIntervalMinutes: number;
   lastOnlineRemindAt: string | null;
+  stableAfterOnlineEnabled: boolean;
+  stableWarmupStartedAt: string | null;
+  stableWarmupCompletedAt: string | null;
   createdAt: string;
 }
 
@@ -202,4 +209,44 @@ export interface DashboardStats {
   onlineDevices: number;
   offlineDevices: number;
   todayAlarms: number;
+}
+
+/** 固件版本信息（管理后台列表项） */
+export interface FirmwareVersionInfo {
+  id: number;
+  version: string;
+  originalName: string;
+  fileSize: number;
+  checksum: string;
+  isLatest: boolean;
+  changelog: string | null;
+  createdBy: number;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+/** 最新固件元数据（公开接口） */
+export interface LatestFirmwareInfo {
+  id: number;
+  version: string;
+  originalName: string;
+  fileSize: number;
+  checksum: string;
+  changelog: string | null;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+/** QQ 验证请求结果 */
+export interface QqVerifyRequestResult {
+  code: string;
+  expiresAt: string;
+  botQq: string;
+}
+
+/** QQ 验证状态 */
+export interface QqVerifyStatus {
+  qqNumber: string | null;
+  verified: boolean;
+  verifiedAt: string | null;
 }

@@ -59,6 +59,8 @@ export interface UserPublicInfo {
   membershipLevel: 'free' | 'premium';
   membershipExpireAt: string | null;
   qqNumber: string | null;
+  qqVerified: boolean;
+  qqVerifiedAt: string | null;
   createdAt: string;
 }
 
@@ -83,6 +85,12 @@ export interface DeviceConfigInfo {
   onlineRemindEnabled: boolean;
   onlineRemindIntervalMinutes: number;
   lastOnlineRemindAt: string | null;
+  /** 稳定后推送模式开关 */
+  stableAfterOnlineEnabled: boolean;
+  /** 预热窗口起始时间（每次 absence 上报刷新），ISO 字符串 */
+  stableWarmupStartedAt: string | null;
+  /** 预热完成时间，ISO 字符串；为 null 表示尚未完成（正在预热） */
+  stableWarmupCompletedAt: string | null;
 }
 
 /** SMTP 配置 */

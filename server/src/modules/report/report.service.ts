@@ -8,6 +8,8 @@ import type { ReportData } from '../../types';
  * 设备上报服务
  * 处理设备数据上报和心跳，包含防抖去重和异步通知触发
  */
+const STABLE_WARMUP_MS = 3 * 60 * 1000;
+
 export class ReportService {
   /**
    * 处理设备数据上报
@@ -44,13 +46,32 @@ export class ReportService {
       },
     });
 
+    const config = await prisma.deviceConfig.findUnique({
+      where: { device_id: device.id },
+    });
+
+    if (config?.stable_after_online_enabled && data.status === 'absence') {
+      await prisma.deviceConfig.update({
+        where: { device_id: device.id },
+        data: {
+          stable_warmup_started_at: new Date(),
+          stable_warmup_completed_at: null,
+        },
+      });
+      logger.debug({ deviceId: device.id }, 'Stable push warmup refreshed by absence report');
+      return { message: '正在预热，已屏蔽推送' };
+    }
+
     if (data.status !== 'presence') {
       return { message: '上报成功' };
     }
 
-    const config = await prisma.deviceConfig.findUnique({
-      where: { device_id: device.id },
-    });
+    if (config?.stable_after_online_enabled) {
+      const warmupResult = await this.checkStableWarmup(device, config);
+      if (warmupResult === 'warming') {
+        return { message: '正在预热，已屏蔽推送' };
+      }
+    }
 
     const debounceInterval = config?.debounce_interval ?? 30;
 
@@ -104,6 +125,57 @@ export class ReportService {
   }
 
   /**
+   * 检查稳定后推送模式预热状态。
+   * presence 上报时：未满 3 分钟则屏蔽；首次满 3 分钟时推送预热完成通知。
+   */
+  private async checkStableWarmup(
+    device: { id: number; user_id: number; name: string },
+    config: { stable_warmup_started_at: Date | null; stable_warmup_completed_at: Date | null },
+  ): Promise<'warming' | 'ready'> {
+    if (!config.stable_warmup_started_at) {
+      return 'ready';
+    }
+
+    const now = new Date();
+    const elapsed = now.getTime() - config.stable_warmup_started_at.getTime();
+    if (elapsed < STABLE_WARMUP_MS) {
+      logger.debug({ deviceId: device.id, elapsed }, 'Stable push warmup active, presence suppressed');
+      return 'warming';
+    }
+
+    if (!config.stable_warmup_completed_at) {
+      const event = await prisma.event.create({
+        data: {
+          device_id: device.id,
+          user_id: device.user_id,
+          type: 'online',
+          detail: {
+            message: '稳定后推送模式预热完成',
+            subtype: 'stable_warmup_complete',
+            warmup_seconds: Math.floor(elapsed / 1000),
+          } as any,
+        },
+      });
+
+      await prisma.deviceConfig.update({
+        where: { device_id: device.id },
+        data: { stable_warmup_completed_at: now },
+      });
+
+      setImmediate(() => {
+        NotificationService.dispatch(
+          { id: device.id, name: device.name, user_id: device.user_id },
+          { id: event.id, type: event.type, detail: event.detail, created_at: event.created_at },
+        ).catch((err) => {
+          logger.error({ err, deviceId: device.id }, 'Stable warmup notification dispatch failed');
+        });
+      });
+    }
+
+    return 'ready';
+  }
+
+  /**
    * 处理设备心跳
    * @param deviceToken 设备 token
    * @param data 心跳数据（含 rssi）
@@ -148,6 +220,23 @@ export class ReportService {
         where: { device_id: device.id },
         data: { last_online_remind_at: null },
       });
+
+      // 设备重新上线时，若稳定后推送模式开启，重置预热状态（以本次上线时刻作为预热起点）
+      const onlineCfg = await prisma.deviceConfig.findUnique({
+        where: { device_id: device.id },
+        select: { stable_after_online_enabled: true },
+      });
+      if (onlineCfg?.stable_after_online_enabled) {
+        await prisma.deviceConfig.update({
+          where: { device_id: device.id },
+          data: {
+            stable_warmup_started_at: new Date(),
+            stable_warmup_completed_at: null,
+          },
+        });
+        logger.info({ deviceId: device.id }, 'Stable push warmup reset on device online');
+      }
+
       setImmediate(() => {
         NotificationService.dispatch(
           { id: device.id, name: device.name, user_id: device.user_id },

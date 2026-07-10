@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import App from './App';
 import { useAuthStore } from './store/auth.store';
 import * as userApi from './api/user.api';
@@ -134,20 +134,37 @@ const queryClient = new QueryClient({
 
 /** 应用根组件 */
 function Root() {
+  const [initialized, setInitialized] = useState(false);
+  const profileSyncedRef = useRef(false);
   const restoreFromStorage = useAuthStore((s) => s.restoreFromStorage);
   const updateUser = useAuthStore((s) => s.updateUser);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const user = useAuthStore((s) => s.user);
 
+  // 页面加载时立即恢复认证状态，完成后再渲染路由
   useEffect(() => {
     restoreFromStorage();
+    setInitialized(true);
   }, [restoreFromStorage]);
 
+  // 刷新页面后，无论 user 是否已从 localStorage 恢复，都重新拉取一次最新 profile，
+  // 确保 user 状态与后端一致（例如 QQ 验证成功后 qqVerified 字段的更新）
   useEffect(() => {
-    if (isAuthenticated && !user) {
-      userApi.getProfile().then((data) => updateUser(data.user)).catch(() => {});
+    if (initialized && isAuthenticated && !profileSyncedRef.current) {
+      profileSyncedRef.current = true;
+      userApi.getProfile()
+        .then((data) => updateUser(data.user))
+        .catch(() => {});
     }
-  }, [isAuthenticated, user, updateUser]);
+  }, [initialized, isAuthenticated, updateUser]);
+
+  // 等待恢复完成后再渲染路由，避免闪烁跳转
+  if (!initialized) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>

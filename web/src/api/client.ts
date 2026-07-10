@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import type { ApiResponse, RefreshResult } from '../types';
 import { STORAGE_KEYS } from '../utils/constants';
+import { useAuthStore } from '../store/auth.store';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -95,10 +96,13 @@ apiClient.interceptors.response.use(
         originalRequest.headers!.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-
+        // 先将队列中等待的请求全部拒绝，避免 promise 永远悬挂
+        refreshQueue.forEach((cb) => cb(''));
         refreshQueue = [];
-        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+        // 通过 clearAuth 同步清除 Zustand store 和 localStorage，
+        // 确保 store 状态与 localStorage 一致，避免渲染时状态不一致导致白屏
+        useAuthStore.getState().clearAuth();
+        // 跳转登录页，触发完整重载以获得干净状态
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {

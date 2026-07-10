@@ -16,6 +16,7 @@ import {
   Typography,
   Divider,
   Box,
+  Alert,
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../hooks/useToast';
@@ -41,6 +42,7 @@ export default function DeviceConfigDialog({ open, device, onClose }: DeviceConf
   const [notifyChannels, setNotifyChannels] = useState<NotifyChannel[]>(['email']);
   const [onlineRemindEnabled, setOnlineRemindEnabled] = useState(false);
   const [onlineRemindIntervalMinutes, setOnlineRemindIntervalMinutes] = useState(ONLINE_REMIND_RANGE.default);
+  const [stableAfterOnlineEnabled, setStableAfterOnlineEnabled] = useState(false);
 
   useEffect(() => {
     if (configData?.config) {
@@ -49,6 +51,7 @@ export default function DeviceConfigDialog({ open, device, onClose }: DeviceConf
       setNotifyChannels(configData.config.notifyChannels);
       setOnlineRemindEnabled(configData.config.onlineRemindEnabled);
       setOnlineRemindIntervalMinutes(configData.config.onlineRemindIntervalMinutes);
+      setStableAfterOnlineEnabled(configData.config.stableAfterOnlineEnabled ?? false);
     }
   }, [configData]);
 
@@ -64,7 +67,7 @@ export default function DeviceConfigDialog({ open, device, onClose }: DeviceConf
   });
 
   const handleSave = () => {
-    mutation.mutate({ notifyEnabled, debounceInterval, notifyChannels, onlineRemindEnabled, onlineRemindIntervalMinutes });
+    mutation.mutate({ notifyEnabled, debounceInterval, notifyChannels, onlineRemindEnabled, onlineRemindIntervalMinutes, stableAfterOnlineEnabled });
   };
 
   return (
@@ -180,6 +183,28 @@ export default function DeviceConfigDialog({ open, device, onClose }: DeviceConf
             可输入 {ONLINE_REMIND_RANGE.min} - {ONLINE_REMIND_RANGE.max} 分钟。
           </Typography>
         </FormControl>
+
+        <Divider sx={{ my: 2 }} />
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={stableAfterOnlineEnabled}
+              onChange={(e) => setStableAfterOnlineEnabled(e.target.checked)}
+              color="primary"
+            />
+          }
+          label="稳定后推送模式"
+          sx={{ mb: 1 }}
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          开启后设备上线仍照常推送在线；有人信息需等设备连续 3 分钟无再次“无人”上报后才开始正常推送，期间屏蔽有人告警并显示“正在预热”。预热完成后会推送一次通知。
+        </Typography>
+        {stableAfterOnlineEnabled && (
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            开启后请保持传感器前无人，静置三分钟，避免预热期间误触发。预热完成后将推送“预热完成”通知。
+          </Alert>
+        )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} variant="outlined" color="inherit">取消</Button>

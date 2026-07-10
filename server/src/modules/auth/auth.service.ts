@@ -33,6 +33,8 @@ function toUserPublicInfo(user: Prisma.UserGetPayload<{}>): UserPublicInfo {
     membershipLevel: user.membership_level,
     membershipExpireAt: user.membership_expire_at ? user.membership_expire_at.toISOString() : null,
     qqNumber: user.qq_number,
+    qqVerified: !!user.qq_verified,
+    qqVerifiedAt: user.qq_verified_at ? user.qq_verified_at.toISOString() : null,
     createdAt: user.created_at.toISOString(),
   };
 }

@@ -175,6 +175,7 @@ describe('NotificationService', () => {
       mockedPrisma.user.findUnique.mockResolvedValue({
         email: 'user@test.local',
         qq_number: '123456789',
+        qq_verified: true,
         membership_level: 'premium',
         membership_expire_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
@@ -203,6 +204,7 @@ describe('NotificationService', () => {
       mockedPrisma.user.findUnique.mockResolvedValue({
         email: 'user@test.local',
         qq_number: '123456789',
+        qq_verified: true,
         membership_level: 'premium',
         membership_expire_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
@@ -225,6 +227,7 @@ describe('NotificationService', () => {
       mockedPrisma.user.findUnique.mockResolvedValue({
         email: 'user@test.local',
         qq_number: '123456789',
+        qq_verified: true,
         membership_level: 'premium',
         membership_expire_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
@@ -248,6 +251,7 @@ describe('NotificationService', () => {
       mockedPrisma.user.findUnique.mockResolvedValue({
         email: 'user@test.local',
         qq_number: '123456789',
+        qq_verified: true,
         membership_level: 'premium',
         membership_expire_at: new Date(Date.now() - 60 * 1000), // expired
       });

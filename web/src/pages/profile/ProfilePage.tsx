@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -10,17 +10,27 @@ import {
   Avatar,
   Divider,
   Alert,
+  Chip,
+  Stack,
 } from '@mui/material';
-import { Person as PersonIcon, Security as SecurityIcon, CardMembership as MemberIcon } from '@mui/icons-material';
+import {
+  Security as SecurityIcon,
+  CardMembership as MemberIcon,
+  ContentCopy as ContentCopyIcon,
+  Verified as VerifiedIcon,
+  ErrorOutline as ErrorOutlineIcon,
+} from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/auth.store';
 import { useToast } from '../../hooks/useToast';
-import { MEMBERSHIP_MAP } from '../../utils/constants';
+import { MEMBERSHIP_MAP, BOT_QQ } from '../../utils/constants';
 import { formatDateTime } from '../../utils/format';
 import * as userApi from '../../api/user.api';
-import * as paymentApi from '../../api/payment.api';
+import * as qqVerifyApi from '../../api/qq-verify.api';
 import { ApiError } from '../../api/client';
 import MembershipUpgradeDialog from '../../components/profile/MembershipUpgradeDialog';
+
+const QQ_VERIFY_POLL_INTERVAL = 5 * 1000;
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore();
@@ -33,23 +43,51 @@ export default function ProfilePage() {
   const [qqNumber, setQqNumber] = useState(user?.qqNumber || '');
   const [passwordError, setPasswordError] = useState('');
   const [searchParams] = useSearchParams();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [qqVerifyCode, setQqVerifyCode] = useState('');
+  const [qqVerifyExpiresAt, setQqVerifyExpiresAt] = useState('');
+  const [qqVerifyActive, setQqVerifyActive] = useState(false);
+  const [qqVerifyError, setQqVerifyError] = useState('');
+  const [qqVerifyCopied, setQqVerifyCopied] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('pay') === 'success') {
-
       userApi.getProfile().then((data) => {
         updateUser(data.user);
       }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['membership'] });
       showSuccess('支付成功，会员已开通');
     }
-
-  }, [searchParams]);
+  }, [searchParams, queryClient, showSuccess, updateUser]);
 
   const { data: membershipData } = useQuery({
     queryKey: ['membership'],
     queryFn: () => userApi.getMembership(),
   });
+
+  const { data: qqVerifyStatus } = useQuery({
+    queryKey: ['qq-verify-status'],
+    queryFn: () => qqVerifyApi.getQqVerifyStatus(),
+    enabled: qqVerifyActive,
+    refetchInterval: qqVerifyActive ? QQ_VERIFY_POLL_INTERVAL : false,
+  });
+
+  useEffect(() => {
+    if (!qqVerifyStatus) {
+      return;
+    }
+
+    if (qqVerifyStatus.verified) {
+      setQqVerifyActive(false);
+      setQqVerifyError('');
+      // 验证成功后保留验证码信息，方便用户查看有效期
+      showSuccess('QQ 验证成功，已开通 QQ 推送');
+      // 同步更新 auth store 的 user 对象，确保 qqVerified 等字段与后端一致，
+      // 避免刷新后 localStorage 中 user 状态过期导致的不一致问题
+      userApi.getProfile().then((data) => updateUser(data.user)).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['membership'] });
+    }
+  }, [qqVerifyStatus, queryClient, showSuccess, updateUser]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (name: string) => userApi.updateProfile(name),
@@ -82,9 +120,29 @@ export default function ProfilePage() {
     mutationFn: (qq: string) => userApi.updateQQ(qq),
     onSuccess: (data) => {
       updateUser(data.user);
-      showSuccess('QQ绑定成功');
+      setQqVerifyActive(false);
+      setQqVerifyCode('');
+      setQqVerifyExpiresAt('');
+      setQqVerifyError('');
+      queryClient.invalidateQueries({ queryKey: ['membership'] });
+      showSuccess('QQ绑定成功，请重新验证归属后再启用 QQ 推送');
     },
     onError: (err: any) => showError(err.message || '绑定失败'),
+  });
+
+  const requestQqVerifyMutation = useMutation({
+    mutationFn: (qq: string) => qqVerifyApi.requestQqVerify(qq),
+    onSuccess: (data) => {
+      setQqVerifyCode(data.code);
+      setQqVerifyExpiresAt(data.expiresAt);
+      setQqVerifyActive(true);
+      setQqVerifyError('');
+      setQqVerifyCopied(false);
+      showSuccess('验证码已生成，请在 QQ 私聊机器人发送');
+    },
+    onError: (err: any) => {
+      setQqVerifyError(err.message || '获取验证码失败');
+    },
   });
 
   const handleNicknameSave = () => {
@@ -112,16 +170,40 @@ export default function ProfilePage() {
     }
   };
 
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const handleRequestVerify = () => {
+    setQqVerifyError('');
+    if (!qqNumber.trim()) {
+      setQqVerifyError('请先填写 QQ 号');
+      return;
+    }
+    requestQqVerifyMutation.mutate(qqNumber.trim());
+  };
+
+  const handleCopyVerifyCode = async () => {
+    if (!qqVerifyCode) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(qqVerifyCode);
+      setQqVerifyCopied(true);
+      showSuccess('验证码已复制');
+    } catch {
+      showError('复制失败，请手动复制验证码');
+    }
+  };
 
   const handleUpgradeSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['membership'] });
     queryClient.invalidateQueries({ queryKey: ['profile'] });
   };
 
+  // 准备渲染时的状态信息
   const membership = membershipData?.membership;
-  const isPremiumMember =
-    membership?.level === 'premium' && !membership?.isExpired;
+  const isPremiumMember = membership?.level === 'premium' && !membership?.isExpired;
+  const isQqVerified = membership?.qqVerified ?? user?.qqVerified ?? false;
+  const verifiedAt = membership?.qqVerifiedAt ?? user?.qqVerifiedAt ?? null;
+  const canVerifyQq = isPremiumMember && !!membership?.qqBound;
 
   return (
     <Box>
@@ -130,7 +212,6 @@ export default function ProfilePage() {
       </Typography>
 
       <Grid container spacing={3}>
-
         <Grid item xs={12} md={6}>
           <Card sx={{ p: 3, borderRadius: '12px' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -183,6 +264,10 @@ export default function ProfilePage() {
               <InfoRow label="当前等级" value={MEMBERSHIP_MAP[membership?.level || user?.membershipLevel || 'free']?.label || '-'} />
               <InfoRow label="到期时间" value={membership?.expireAt ? formatDateTime(membership.expireAt) : '永久'} />
               <InfoRow label="QQ绑定" value={membership?.qqBound ? '已绑定' : '未绑定'} />
+              <InfoRow label="QQ验证" value={isQqVerified ? '已验证' : '未验证'} />
+              {verifiedAt && (
+                <InfoRow label="验证时间" value={formatDateTime(verifiedAt)} />
+              )}
               {membership?.isExpired && (
                 <Alert severity="warning" sx={{ borderRadius: '8px' }}>
                   会员已过期，QQ通知功能已关闭
@@ -206,6 +291,70 @@ export default function ProfilePage() {
               <Button variant="contained" onClick={handleQQSave} disabled={updateQQMutation.isPending}>
                 {user?.qqNumber ? '更新' : '绑定'}
               </Button>
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                QQ 验证
+              </Typography>
+              {!canVerifyQq ? (
+                <Alert severity="info" sx={{ borderRadius: '8px' }}>
+                  请先开通会员并绑定 QQ 号，再进行归属验证。
+                </Alert>
+              ) : isQqVerified ? (
+                <Alert
+                  severity="success"
+                  icon={<VerifiedIcon fontSize="inherit" />}
+                  sx={{ borderRadius: '8px' }}
+                >
+                  QQ 归属已验证，通知功能已启用。
+                </Alert>
+              ) : (
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Chip label="状态：未验证" color="warning" variant="outlined" />
+                    <Chip label={`机器人 QQ：${BOT_QQ}`} variant="outlined" />
+                  </Stack>
+                  {qqVerifyError && (
+                    <Alert severity="error" icon={<ErrorOutlineIcon fontSize="inherit" />} sx={{ borderRadius: '8px' }}>
+                      {qqVerifyError}
+                    </Alert>
+                  )}
+                  {qqVerifyCode ? (
+                    <Alert severity="info" sx={{ borderRadius: '8px' }}>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        请先将机器人 QQ <strong>{BOT_QQ}</strong> 加为好友，然后私聊发送以下 6 位验证码：
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 2 }}>
+                        {qqVerifyCode}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {qqVerifyExpiresAt ? `有效期至 ${formatDateTime(qqVerifyExpiresAt)}` : '验证码已生成'}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<ContentCopyIcon />}
+                        onClick={handleCopyVerifyCode}
+                        sx={{ mt: 1 }}
+                      >
+                        {qqVerifyCopied ? '已复制' : '复制验证码'}
+                      </Button>
+                    </Alert>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      onClick={handleRequestVerify}
+                      disabled={requestQqVerifyMutation.isPending}
+                    >
+                      {requestQqVerifyMutation.isPending ? '生成中...' : '获取验证码'}
+                    </Button>
+                  )}
+                  <Typography variant="body2" color="text.secondary">
+                    向机器人发送验证码后，页面会自动轮询验证状态。
+                  </Typography>
+                </Stack>
+              )}
             </Box>
           </Card>
         </Grid>

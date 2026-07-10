@@ -23,6 +23,7 @@ import {
   Logout as LogoutIcon,
   ArrowBack as ArrowBackIcon,
   Dashboard as DashboardIcon,
+  Memory as MemoryIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthStore } from '../../store/auth.store';
@@ -35,6 +36,7 @@ const adminNavItems = [
   { path: ROUTE_PATHS.ADMIN_ACTIVATION, label: '激活码管理', icon: <KeyIcon /> },
   { path: ROUTE_PATHS.ADMIN_USERS, label: '用户管理', icon: <PeopleIcon /> },
   { path: ROUTE_PATHS.ADMIN_ORDERS, label: '订单管理', icon: <ReceiptIcon /> },
+  { path: ROUTE_PATHS.ADMIN_FIRMWARE, label: '固件管理', icon: <MemoryIcon /> },
   { path: ROUTE_PATHS.ADMIN_SETTINGS, label: '系统配置', icon: <SettingsIcon /> },
 ];
 

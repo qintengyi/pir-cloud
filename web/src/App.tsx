@@ -15,12 +15,14 @@ import DeviceDetailPage from './pages/devices/DeviceDetailPage';
 import AlarmsPage from './pages/alarms/AlarmsPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import ProfilePage from './pages/profile/ProfilePage';
+import FlashPage from './pages/flash/FlashPage';
 
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import ActivationCodesPage from './pages/admin/ActivationCodesPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import OrdersPage from './pages/admin/OrdersPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import FirmwarePage from './pages/admin/FirmwarePage';
 
 export default function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -94,6 +96,17 @@ export default function App() {
       />
 
       <Route
+        path={ROUTE_PATHS.FLASH}
+        element={
+          <AuthGuard>
+            <MainLayout>
+              <FlashPage />
+            </MainLayout>
+          </AuthGuard>
+        }
+      />
+
+      <Route
         path={ROUTE_PATHS.ADMIN_DASHBOARD}
         element={
           <AuthGuard requireAdmin>
@@ -139,6 +152,17 @@ export default function App() {
           <AuthGuard requireAdmin>
             <AdminLayout>
               <SettingsPage />
+            </AdminLayout>
+          </AuthGuard>
+        }
+      />
+
+      <Route
+        path={ROUTE_PATHS.ADMIN_FIRMWARE}
+        element={
+          <AuthGuard requireAdmin>
+            <AdminLayout>
+              <FirmwarePage />
             </AdminLayout>
           </AuthGuard>
         }

@@ -50,6 +50,7 @@ export async function updateDeviceConfig(
     notifyChannels: string[];
     onlineRemindEnabled: boolean;
     onlineRemindIntervalMinutes: number;
+    stableAfterOnlineEnabled: boolean;
   }>,
 ) {
   const res = await apiClient.put<ApiResponse<{ config: DeviceConfig }>>(`/devices/${id}/config`, config);

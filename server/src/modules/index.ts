@@ -8,6 +8,9 @@ import { activationRoutes } from './admin/activation/activation.routes';
 import { adminUsersRoutes } from './admin/users/admin-users.routes';
 import { ordersRoutes } from './admin/orders/orders.routes';
 import { settingsRoutes } from './admin/settings/settings.routes';
+import { adminFirmwareRoutes } from './admin/firmware/firmware.routes';
+import { firmwareRoutes } from './firmware/firmware.routes';
+import { qqVerifyRoutes } from './qq-verify/qq-verify.routes';
 import { paymentRoutes } from './payment/payment.routes';
 import { logger } from '../utils/logger';
 
@@ -37,6 +40,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await paymentRoutes(app);
 
   await settingsRoutes(app);
+
+  await adminFirmwareRoutes(app);
+
+  await firmwareRoutes(app);
+
+  await qqVerifyRoutes(app);
 
   logger.info('All routes registered successfully');
 }

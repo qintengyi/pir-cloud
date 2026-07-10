@@ -57,6 +57,17 @@ export const config = {
     auth: parseInt(process.env.RATE_LIMIT_AUTH || '5', 10),
     report: parseInt(process.env.RATE_LIMIT_REPORT || '60', 10),
   },
+
+  firmware: {
+    storeDir: process.env.FIRMWARE_STORE_DIR || path.resolve(process.cwd(), 'firmware_store'),
+    maxSize: parseInt(process.env.FIRMWARE_MAX_SIZE || String(4 * 1024 * 1024), 10), // 4MB
+  },
+
+  qqVerify: {
+    codeExpireMinutes: parseInt(process.env.QQ_VERIFY_EXPIRE_MINUTES || '30', 10),
+    callbackSecret: process.env.QQ_VERIFY_SECRET || 'change-me',
+    botQq: process.env.QQ_VERIFY_BOT_QQ || '2472900895',
+  },
 } as const;
 
 export type Config = typeof config;

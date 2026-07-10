@@ -12,6 +12,7 @@ import {
   FormGroup,
   Divider,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import { ArrowBack, Devices as DevicesIcon } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
@@ -38,12 +39,14 @@ export default function DeviceDetailPage() {
   const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [debounceInterval, setDebounceInterval] = useState(30);
   const [notifyChannels, setNotifyChannels] = useState<NotifyChannel[]>(['email']);
+  const [stableAfterOnlineEnabled, setStableAfterOnlineEnabled] = useState(false);
 
   useEffect(() => {
     if (configData?.config) {
       setNotifyEnabled(configData.config.notifyEnabled);
       setDebounceInterval(configData.config.debounceInterval);
       setNotifyChannels(configData.config.notifyChannels);
+      setStableAfterOnlineEnabled(configData.config.stableAfterOnlineEnabled ?? false);
     }
   }, [configData]);
 
@@ -62,6 +65,7 @@ export default function DeviceDetailPage() {
       notifyEnabled,
       debounceInterval,
       notifyChannels,
+      stableAfterOnlineEnabled,
     });
   };
 
@@ -186,6 +190,28 @@ export default function DeviceDetailPage() {
                 label={NOTIFY_CHANNEL_MAP.qq_bot.label + '（需付费会员）'}
               />
             </FormGroup>
+
+            <Divider sx={{ my: 2 }} />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={stableAfterOnlineEnabled}
+                  onChange={(e) => setStableAfterOnlineEnabled(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="稳定后推送模式"
+              sx={{ mb: 1 }}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              开启后设备上线仍照常推送在线；有人信息需等设备连续 3 分钟无再次“无人”上报后才开始正常推送，期间屏蔽有人告警并显示“正在预热”。预热完成后会推送一次通知。
+            </Typography>
+            {stableAfterOnlineEnabled && (
+              <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                开启后请保持传感器前无人，静置三分钟，避免预热期间误触发。预热完成后将推送“预热完成”通知。
+              </Alert>
+            )}
 
             <Button
               variant="contained"

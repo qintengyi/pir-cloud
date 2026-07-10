@@ -225,6 +225,42 @@ class EmailServiceClass {
   }
 
   /**
+   * 发送稳定后推送模式预热完成邮件
+   * 设备静置超过 3 分钟后触发，提示后续将正常处理有人推送
+   */
+  async sendStableWarmupCompleteEmail(
+    to: string,
+    deviceName: string,
+    completeTime: Date,
+  ): Promise<{ success: boolean; error?: string }> {
+    const formattedTime = completeTime.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+
+    const html = `
+      <div style="max-width: 480px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="background: #e8f5e9; padding: 24px; border-radius: 8px; border-left: 4px solid #43a047;">
+          <h2 style="color: #2e7d32; margin: 0 0 16px 0;">✅ 稳定后推送预热完成</h2>
+          <p style="color: #555; font-size: 14px; margin: 0 0 12px 0;">设备已静置超过 3 分钟，后续将正常处理有人推送。</p>
+          <table style="width: 100%; font-size: 14px; color: #333;">
+            <tr><td style="padding: 4px 0; color: #999;">设备名称</td><td style="padding: 4px 0;"><strong>${deviceName}</strong></td></tr>
+            <tr><td style="padding: 4px 0; color: #999;">完成时间</td><td style="padding: 4px 0;">${formattedTime}</td></tr>
+          </table>
+        </div>
+        <p style="text-align: center; color: #ccc; font-size: 12px; margin-top: 16px;">© 2025 pir-cloud · 稳定后推送已生效</p>
+      </div>
+    `;
+
+    const subject = `【pir-cloud】${deviceName} 稳定后推送预热完成`;
+    const result = await this.retrySend({ to, subject, html });
+
+    if (!result.success) {
+      logger.error({ to, deviceName, error: result.error }, 'Failed to send stable warmup complete email after retries');
+      return { success: false, error: result.error };
+    }
+
+    return { success: true };
+  }
+
+  /**
    * 发送测试邮件
    * @param to 收件人邮箱
    */
