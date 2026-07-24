@@ -61,6 +61,8 @@ export interface UserPublicInfo {
   qqNumber: string | null;
   qqVerified: boolean;
   qqVerifiedAt: string | null;
+  emailVerified: boolean;
+  oidcSub: string | null;
   createdAt: string;
 }
 
@@ -75,7 +77,7 @@ export interface ReportData {
 export type NotifyChannel = 'email' | 'qq_bot';
 
 /** 验证码类型 */
-export type VerificationCodeType = 'register' | 'reset_password';
+export type VerificationCodeType = 'register' | 'reset_password' | 'bind_email';
 
 /** 设备配置信息 */
 export interface DeviceConfigInfo {

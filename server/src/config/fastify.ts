@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
+import cookie from '@fastify/cookie';
 import { config } from './index';
 import { logger } from '../utils/logger';
 import { errorHandler } from '../middlewares/error.middleware';
@@ -42,6 +43,11 @@ export async function buildApp(opts: FastifyServerOptions = {}): Promise<Fastify
       fileSize: config.firmware.maxSize,
       fields: 10,
     },
+  });
+
+  // Cookie 插件（OIDC PKCE 流程需要）
+  await app.register(cookie, {
+    secret: config.jwt.accessSecret,
   });
 
   app.setErrorHandler(errorHandler);

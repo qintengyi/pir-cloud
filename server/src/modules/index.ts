@@ -12,6 +12,7 @@ import { adminFirmwareRoutes } from './admin/firmware/firmware.routes';
 import { firmwareRoutes } from './firmware/firmware.routes';
 import { qqVerifyRoutes } from './qq-verify/qq-verify.routes';
 import { paymentRoutes } from './payment/payment.routes';
+import { oidcRoutes } from './oidc/oidc.routes';
 import { logger } from '../utils/logger';
 
 /**
@@ -22,6 +23,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   logger.info('Registering routes...');
 
   await authRoutes(app);
+
+  await oidcRoutes(app);
 
   await userRoutes(app);
 

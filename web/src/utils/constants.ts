@@ -8,6 +8,8 @@ export const ROUTE_PATHS = {
   LOGIN: '/login',
   REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
+  OIDC_CALLBACK: '/auth/oidc/callback',
+  BIND_EMAIL: '/bind-email',
 
   DASHBOARD: '/',
   DEVICES: '/devices',
@@ -24,6 +26,9 @@ export const ROUTE_PATHS = {
   ADMIN_FIRMWARE: '/admin/firmware',
   FLASH: '/flash',
 } as const;
+
+/** OIDC 一键登录入口（后端 302 跳转） */
+export const OIDC_LOGIN_URL = '/api/auth/oidc/login';
 
 /** QQ 验证机器人 QQ 号 */
 export const BOT_QQ = '2472900895';

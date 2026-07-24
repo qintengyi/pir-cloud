@@ -39,7 +39,7 @@ export type ActivationCodeStatus = 'unused' | 'bound' | 'disabled';
 export type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
 
 /** 验证码类型 */
-export type VerificationCodeType = 'register' | 'reset_password';
+export type VerificationCodeType = 'register' | 'reset_password' | 'bind_email';
 
 /** 用户公开信息 */
 export interface UserPublicInfo {
@@ -52,6 +52,8 @@ export interface UserPublicInfo {
   qqNumber: string | null;
   qqVerified: boolean;
   qqVerifiedAt: string | null;
+  emailVerified: boolean;
+  oidcSub: string | null;
   createdAt: string;
 }
 

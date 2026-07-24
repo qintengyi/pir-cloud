@@ -1,10 +1,10 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { firmwareService } from './firmware.service';
 import { success } from '../../utils/response';
-import fs from 'fs';
 
 /**
  * 公开固件控制器（设备/用户拉取，无需鉴权）
+ * 下载端点通过 302 重定向到 Alist 下载地址
  */
 
 /** 获取最新固件版本元数据 */
@@ -28,7 +28,7 @@ export async function getLatestHandler(
   }
 }
 
-/** 下载最新固件 */
+/** 下载最新固件（302 重定向到 Alist 下载地址） */
 export async function downloadLatestHandler(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -40,18 +40,13 @@ export async function downloadLatestHandler(
       return;
     }
 
-    const { fullPath, exists } = firmwareService.resolveDiskPath(fw.disk_filename);
+    const { fullPath, exists } = await firmwareService.resolveDiskPath(fw.disk_filename);
     if (!exists) {
       reply.status(404).send({ code: 4001, message: '固件文件不存在', data: null });
       return;
     }
 
-    const buffer = fs.readFileSync(fullPath);
-    reply
-      .header('Content-Type', 'application/octet-stream')
-      .header('Content-Length', String(buffer.length))
-      .header('Content-Disposition', `attachment; filename="${encodeURIComponent(fw.original_name)}"`)
-      .send(buffer);
+    reply.redirect(302, fullPath);
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({
       code: err.code || 5001,
@@ -61,7 +56,7 @@ export async function downloadLatestHandler(
   }
 }
 
-/** 按版本号下载固件 */
+/** 按版本号下载固件（302 重定向到 Alist 下载地址） */
 export async function downloadByVersionHandler(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -74,18 +69,13 @@ export async function downloadByVersionHandler(
       return;
     }
 
-    const { fullPath, exists } = firmwareService.resolveDiskPath(fw.disk_filename);
+    const { fullPath, exists } = await firmwareService.resolveDiskPath(fw.disk_filename);
     if (!exists) {
       reply.status(404).send({ code: 4001, message: '固件文件不存在', data: null });
       return;
     }
 
-    const buffer = fs.readFileSync(fullPath);
-    reply
-      .header('Content-Type', 'application/octet-stream')
-      .header('Content-Length', String(buffer.length))
-      .header('Content-Disposition', `attachment; filename="${encodeURIComponent(fw.original_name)}"`)
-      .send(buffer);
+    reply.redirect(302, fullPath);
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({
       code: err.code || 5001,

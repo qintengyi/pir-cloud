@@ -28,6 +28,8 @@ function toUserPublicInfo(user: any): UserPublicInfo {
     qqNumber: user.qq_number,
     qqVerified: !!user.qq_verified,
     qqVerifiedAt: user.qq_verified_at ? user.qq_verified_at.toISOString() : null,
+    emailVerified: !!user.email_verified,
+    oidcSub: user.oidc_sub,
     createdAt: user.created_at.toISOString(),
   };
 }

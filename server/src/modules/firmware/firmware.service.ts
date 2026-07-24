@@ -1,11 +1,9 @@
-import fs from 'fs';
-import path from 'path';
 import { prisma } from '../../config/prisma';
-import { config } from '../../config/index';
-import { logger } from '../../utils/logger';
+import { alistService } from '../alist/alist.service';
 
 /**
  * 公开固件服务（设备/用户拉取，无需鉴权）
+ * 固件文件存储在 Alist 上，下载通过 302 重定向到 Alist 下载地址
  */
 export class FirmwareService {
   /** 获取最新固件版本元数据 */
@@ -40,10 +38,15 @@ export class FirmwareService {
     return prisma.firmwareVersion.findUnique({ where: { version } });
   }
 
-  /** 还原磁盘路径 */
-  resolveDiskPath(diskFilename: string): { fullPath: string; exists: boolean } {
-    const fullPath = path.join(config.firmware.storeDir, diskFilename);
-    return { fullPath, exists: fs.existsSync(fullPath) };
+  /**
+   * 解析固件文件的下载地址和存在性
+   * @param diskFilename 落盘文件名
+   * @returns 下载 URL 和是否存在
+   */
+  async resolveDiskPath(diskFilename: string): Promise<{ fullPath: string; exists: boolean }> {
+    const fullPath = alistService.getDownloadUrl(diskFilename);
+    const exists = await alistService.fileExists(diskFilename);
+    return { fullPath, exists };
   }
 }
 

@@ -25,7 +25,7 @@ export async function sendCodeHandler(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    const { email, type } = request.body as { email: string; type: 'register' | 'reset_password' };
+    const { email, type } = request.body as { email: string; type: 'register' | 'reset_password' | 'bind_email' };
     await authService.sendVerificationCode(email, type);
     successMessage(reply, '验证码已发送');
   } catch (err: any) {
@@ -136,6 +136,21 @@ export async function meHandler(
     const userId = request.user.id;
     const user = await authService.getMe(userId);
     success(reply, { user }, '获取成功');
+  } catch (err: any) {
+    handleBusinessError(reply, err);
+  }
+}
+
+/** 绑定邮箱（OIDC 新用户补绑邮箱） */
+export async function bindEmailHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const userId = request.user.id;
+    const { email, code } = request.body as { email: string; code: string };
+    const user = await authService.bindEmail(userId, email, code);
+    success(reply, { user }, '邮箱绑定成功');
   } catch (err: any) {
     handleBusinessError(reply, err);
   }

@@ -74,3 +74,21 @@ export async function getMe() {
   const res = await apiClient.get<ApiResponse<{ user: UserPublicInfo }>>('/auth/me');
   return res.data.data;
 }
+
+/** 发送绑定邮箱验证码 */
+export async function sendBindEmailCode(email: string) {
+  const res = await apiClient.post<ApiResponse<null>>('/auth/send-code', {
+    email,
+    type: 'bind_email',
+  });
+  return res.data;
+}
+
+/** 绑定邮箱 */
+export async function bindEmail(email: string, code: string) {
+  const res = await apiClient.post<ApiResponse<{ user: UserPublicInfo }>>('/auth/bind-email', {
+    email,
+    code,
+  });
+  return res.data.data;
+}

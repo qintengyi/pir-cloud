@@ -68,6 +68,24 @@ export const config = {
     callbackSecret: process.env.QQ_VERIFY_SECRET || 'change-me',
     botQq: process.env.QQ_VERIFY_BOT_QQ || '2472900895',
   },
+
+  oidc: {
+    issuer: process.env.OIDC_ISSUER || 'https://auth.xiaoyyua.top',
+    clientId: process.env.OIDC_CLIENT_ID || 'pir-cloud',
+    clientSecret: process.env.OIDC_CLIENT_SECRET || '5a623d9af2e489b22344f1cc606b4afa',
+    redirectUri: process.env.OIDC_REDIRECT_URI || 'https://pir.xiaoyyua.top/api/auth/oidc/callback',
+    scopes: process.env.OIDC_SCOPES || 'openid profile qq',
+  },
+
+  alist: {
+    baseUrl: process.env.ALIST_BASE_URL || 'https://alist.xiaoyyua.top',
+    apiToken: process.env.ALIST_API_TOKEN || 'openlist-80a43f35-c303-4d62-bd76-9e23d29833a5rn1vyTvIn2a06fEOaaUtdGMwXUReL3sW6gO6fobKMNrmRufbIAHPpY8ZIJJrFLM0',
+    firmwareBasePath: process.env.ALIST_FIRMWARE_PATH || '/S3-Rainyun-18376752486(11323)/alist1/guest/pir_download',
+  },
+
+  web: {
+    url: process.env.WEB_URL || 'https://pir.xiaoyyua.top',
+  },
 } as const;
 
 export type Config = typeof config;

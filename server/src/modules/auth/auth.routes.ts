@@ -11,6 +11,7 @@ import {
   refreshHandler,
   logoutHandler,
   meHandler,
+  bindEmailHandler,
 } from './auth.controller';
 import {
   sendCodeSchema,
@@ -19,6 +20,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   refreshSchema,
+  bindEmailSchema,
 } from './auth.schema';
 
 /**
@@ -73,5 +75,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/auth/me', {
     preHandler: [authMiddleware],
     handler: meHandler,
+  });
+
+  app.post('/api/auth/bind-email', {
+    schema: bindEmailSchema,
+    preHandler: [authMiddleware],
+    handler: bindEmailHandler,
   });
 }

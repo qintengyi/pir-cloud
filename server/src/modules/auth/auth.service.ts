@@ -4,6 +4,8 @@ import { hashPassword, comparePassword, validatePasswordStrength } from '../../u
 import { signAccessToken, signRefreshToken, verifyRefreshToken, getRefreshTokenExpiry } from '../../utils/jwt';
 import { generateVerificationCode } from '../../utils/crypto';
 import { EmailService } from '../notification/email.service';
+import { oidcService } from '../oidc/oidc.service';
+import type { OidcUserInfo } from '../oidc/oidc.service';
 import type { AuthResult, UserPublicInfo, VerificationCodeType } from '../../types';
 import type { Prisma } from '@prisma/client';
 
@@ -35,6 +37,8 @@ function toUserPublicInfo(user: Prisma.UserGetPayload<{}>): UserPublicInfo {
     qqNumber: user.qq_number,
     qqVerified: !!user.qq_verified,
     qqVerifiedAt: user.qq_verified_at ? user.qq_verified_at.toISOString() : null,
+    emailVerified: !!user.email_verified,
+    oidcSub: user.oidc_sub,
     createdAt: user.created_at.toISOString(),
   };
 }
@@ -362,6 +366,58 @@ export class AuthService {
     }
 
     return toUserPublicInfo(user);
+  }
+
+  /**
+   * OIDC 一键登录
+   * 根据 OIDC 用户信息登录或注册新用户，生成 JWT
+   * @param userInfo OIDC 用户信息
+   * @returns 认证结果 + 是否需要绑定邮箱
+   */
+  async oidcLogin(userInfo: OidcUserInfo): Promise<AuthResult & { needBindEmail: boolean }> {
+    const user = await oidcService.loginOrRegister(userInfo);
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+
+    logger.info({ userId: user.id, email: user.email, emailVerified: user.email_verified }, 'OIDC login successful');
+
+    return {
+      ...tokens,
+      user: toUserPublicInfo(user),
+      needBindEmail: !user.email_verified,
+    };
+  }
+
+  /**
+   * 绑定邮箱（OIDC 新用户补绑邮箱）
+   * @param userId 用户 ID
+   * @param email 待绑定邮箱
+   * @param code 验证码
+   * @returns 更新后的用户公开信息
+   */
+  async bindEmail(userId: number, email: string, code: string): Promise<UserPublicInfo> {
+    // 校验验证码（type=bind_email）
+    await this.verifyCode(email, code, 'bind_email');
+
+    // 检查邮箱是否已被其他用户使用
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser && existingUser.id !== userId) {
+      const error = new Error('该邮箱已被其他账号绑定');
+      (error as any).code = 1003;
+      (error as any).statusCode = 409;
+      throw error;
+    }
+
+    // 更新用户邮箱 + 标记已验证
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        email,
+        email_verified: true,
+      },
+    });
+
+    logger.info({ userId, email }, 'Email bound successfully');
+    return toUserPublicInfo(updatedUser);
   }
 
   /**

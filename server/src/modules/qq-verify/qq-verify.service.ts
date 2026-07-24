@@ -14,7 +14,7 @@ export class QqVerifyService {
   }
 
   /**
-   * 发起验证请求（仅 premium + 已绑 QQ）
+   * 发起验证请求（premium 会员或 OIDC 注册用户 + 已绑 QQ）
    */
   async requestCode(userId: number, qqNumber: string) {
     const user = await prisma.user.findUnique({
@@ -24,6 +24,7 @@ export class QqVerifyService {
         membership_level: true,
         membership_expire_at: true,
         qq_number: true,
+        oidc_sub: true,
       },
     });
 
@@ -38,8 +39,10 @@ export class QqVerifyService {
       user.membership_level === 'premium' &&
       (!user.membership_expire_at || user.membership_expire_at > new Date());
 
-    if (!isPremium) {
-      const error = new Error('仅付费会员可进行 QQ 验证');
+    // OIDC 注册用户（oidc_sub 不为空）或付费会员可进行 QQ 验证
+    const isOidcUser = !!user.oidc_sub;
+    if (!isPremium && !isOidcUser) {
+      const error = new Error('仅付费会员或 OIDC 注册用户可进行 QQ 验证');
       (error as any).code = 3002;
       (error as any).statusCode = 403;
       throw error;

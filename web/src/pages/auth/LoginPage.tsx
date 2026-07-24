@@ -10,6 +10,7 @@ import {
   Tab,
   InputAdornment,
   Alert,
+  Divider,
 } from '@mui/material';
 import { Email, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
@@ -163,6 +164,30 @@ export default function LoginPage() {
             </Typography>
           </Link>
         </Box>
+
+        <Divider sx={{ my: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            或
+          </Typography>
+        </Divider>
+
+        <Button
+          fullWidth
+          variant="contained"
+          size="large"
+          onClick={() => {
+            window.location.href = '/api/auth/oidc/login';
+          }}
+          sx={{
+            borderRadius: '8px',
+            py: 1.2,
+            textTransform: 'none',
+            backgroundColor: '#12B7F5',
+            '&:hover': { backgroundColor: '#0EA1E0' },
+          }}
+        >
+          QQ 一键登录
+        </Button>
       </Card>
     </Box>
   );

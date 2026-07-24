@@ -1,25 +1,16 @@
-import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { prisma } from '../../../config/prisma';
 import { logger } from '../../../utils/logger';
 import { config } from '../../../config/index';
+import { alistService } from '../../alist/alist.service';
 
 /**
  * 管理员 - 固件版本管理服务
  * 负责固件 bin 文件的上传、列表、删除、设为最新、下载
+ * 固件文件存储在 Alist 上，不再使用本地文件系统
  */
 export class AdminFirmwareService {
-  private get storeDir(): string {
-    return config.firmware.storeDir;
-  }
-
-  /** 确保存储目录存在 */
-  private ensureStoreDir(): void {
-    if (!fs.existsSync(this.storeDir)) {
-      fs.mkdirSync(this.storeDir, { recursive: true });
-    }
-  }
 
   /** 生成唯一落盘文件名：<时间戳>_<随机>_<安全化的原始名> */
   private buildDiskFilename(originalName: string): string {
@@ -45,8 +36,6 @@ export class AdminFirmwareService {
     isLatest: boolean,
     adminId: number,
   ): Promise<{ id: number; version: string; originalName: string; fileSize: number; checksum: string; isLatest: boolean }> {
-    this.ensureStoreDir();
-
     // 版本号唯一性校验
     const existing = await prisma.firmwareVersion.findUnique({ where: { version } });
     if (existing) {
@@ -66,14 +55,12 @@ export class AdminFirmwareService {
 
     const originalName = filename || `firmware_${version}.bin`;
     const diskFilename = this.buildDiskFilename(originalName);
-    const diskPath = path.join(this.storeDir, diskFilename);
 
-    // 落盘
+    // 上传到 Alist
     try {
-      fs.writeFileSync(diskPath, fileBuffer);
+      await alistService.uploadFile(diskFilename, fileBuffer);
     } catch (err: any) {
-      if (fs.existsSync(diskPath)) fs.unlinkSync(diskPath);
-      const error = new Error(err.message || '固件文件写入失败');
+      const error = new Error(err.message || '固件文件上传失败');
       (error as any).code = 4001;
       (error as any).statusCode = 400;
       throw error;
@@ -101,7 +88,7 @@ export class AdminFirmwareService {
       });
     });
 
-    logger.info({ id: record.id, version, fileSize, checksum, isLatest, adminId }, 'Firmware version uploaded');
+    logger.info({ id: record.id, version, fileSize, checksum, isLatest, adminId }, 'Firmware version uploaded to Alist');
     return {
       id: record.id,
       version: record.version,
@@ -159,7 +146,7 @@ export class AdminFirmwareService {
     logger.info({ firmwareId, version: fw.version }, 'Firmware set as latest');
   }
 
-  /** 删除固件版本（连磁盘文件一起删） */
+  /** 删除固件版本（连 Alist 文件一起删） */
   async deleteFirmware(firmwareId: number): Promise<void> {
     const fw = await prisma.firmwareVersion.findUnique({ where: { id: firmwareId } });
     if (!fw) {
@@ -169,9 +156,11 @@ export class AdminFirmwareService {
       throw error;
     }
 
-    const diskPath = path.join(this.storeDir, fw.disk_filename);
-    if (fs.existsSync(diskPath)) {
-      fs.unlinkSync(diskPath);
+    try {
+      await alistService.deleteFile(fw.disk_filename);
+    } catch (err: any) {
+      // 文件删除失败仅记录日志，不阻断删除流程
+      logger.warn({ err, diskFilename: fw.disk_filename }, 'Failed to delete firmware from Alist');
     }
 
     await prisma.firmwareVersion.delete({ where: { id: firmwareId } });
@@ -183,10 +172,15 @@ export class AdminFirmwareService {
     return prisma.firmwareVersion.findUnique({ where: { id: firmwareId } });
   }
 
-  /** 根据记录还原磁盘路径 */
-  resolveDiskPath(fw: { disk_filename: string }): { fullPath: string; exists: boolean } {
-    const fullPath = path.join(this.storeDir, fw.disk_filename);
-    return { fullPath, exists: fs.existsSync(fullPath) };
+  /**
+   * 解析固件文件的下载地址和存在性
+   * @param fw 固件记录（含 disk_filename）
+   * @returns 下载 URL 和是否存在
+   */
+  async resolveDiskPath(fw: { disk_filename: string }): Promise<{ fullPath: string; exists: boolean }> {
+    const fullPath = alistService.getDownloadUrl(fw.disk_filename);
+    const exists = await alistService.fileExists(fw.disk_filename);
+    return { fullPath, exists };
   }
 }
 

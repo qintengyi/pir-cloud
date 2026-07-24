@@ -49,6 +49,7 @@ enum OrderStatus {
 enum VerificationCodeType {
   register
   reset_password
+  bind_email
 }
 
 // ==================== 模型 ====================
@@ -64,6 +65,8 @@ model User {
   qq_number            String?          @db.VarChar(20)
   qq_verified          Boolean          @default(false) // QQ 归属验证：用户向机器人发码验证后置 true
   qq_verified_at       DateTime?
+  email_verified       Boolean          @default(true) // 邮箱是否已验证（OIDC 新用户为 false，需绑定邮箱后置 true）
+  oidc_sub             String?          @db.VarChar(128) // OIDC 提供商返回的 subject 标识
   login_fail_count     Int              @default(0)
   locked_until         DateTime?
   created_at           DateTime         @default(now())
@@ -82,6 +85,7 @@ model User {
   @@index([email])
   @@index([role])
   @@index([membership_level])
+  @@index([oidc_sub])
   @@map("users")
 }
 

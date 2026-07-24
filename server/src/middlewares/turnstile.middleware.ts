@@ -42,6 +42,13 @@ export async function turnstileMiddleware(
     return;
   }
 
+  // 已认证请求（如 OIDC 用户绑定邮箱）无需 Turnstile 验证
+  const authHeader = request.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    logger.debug('Turnstile verification skipped: request is authenticated');
+    return;
+  }
+
   const body = request.body as { turnstileToken?: string } | undefined;
   const turnstileToken = body?.turnstileToken;
 

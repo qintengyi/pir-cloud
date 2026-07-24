@@ -22,6 +22,18 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
     return <Navigate to={ROUTE_PATHS.LOGIN} state={{ from: location }} replace />;
   }
 
+  // 已登录但未绑定邮箱的用户，重定向到 /bind-email
+  // 但允许访问 /bind-email 和 /auth/oidc/callback 本身
+  if (
+    isAuthenticated &&
+    user &&
+    !user.emailVerified &&
+    location.pathname !== ROUTE_PATHS.BIND_EMAIL &&
+    location.pathname !== ROUTE_PATHS.OIDC_CALLBACK
+  ) {
+    return <Navigate to={ROUTE_PATHS.BIND_EMAIL} replace />;
+  }
+
   if (requireAdmin && user?.role !== 'admin') {
     return <Navigate to={ROUTE_PATHS.DASHBOARD} replace />;
   }

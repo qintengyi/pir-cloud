@@ -10,7 +10,7 @@ export const sendCodeSchema = {
     required: ['email', 'type'],
     properties: {
       email: { type: 'string', format: 'email', maxLength: 255 },
-      type: { type: 'string', enum: ['register', 'reset_password'] },
+      type: { type: 'string', enum: ['register', 'reset_password', 'bind_email'] },
       turnstileToken: { type: 'string' },
     },
   },
@@ -76,6 +76,18 @@ export const refreshSchema = {
     required: ['refreshToken'],
     properties: {
       refreshToken: { type: 'string', minLength: 1, maxLength: 512 },
+    },
+  },
+};
+
+/** 绑定邮箱 */
+export const bindEmailSchema = {
+  body: {
+    type: 'object',
+    required: ['email', 'code'],
+    properties: {
+      email: { type: 'string', format: 'email', maxLength: 255 },
+      code: { type: 'string', minLength: 6, maxLength: 6 },
     },
   },
 };

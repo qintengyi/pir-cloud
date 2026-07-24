@@ -1,0 +1,13 @@
+# OIDC + Alist 配置（追加到现有 .env 文件末尾）
+
+# OIDC 一键登录
+OIDC_ISSUER=https://auth.xiaoyyua.top
+OIDC_CLIENT_ID=pir-cloud
+OIDC_CLIENT_SECRET=5a623d9af2e489b22344f1cc606b4afa
+OIDC_REDIRECT_URI=https://pir.xiaoyyua.top/api/auth/oidc/callback
+OIDC_SCOPES=openid profile qq
+
+# Alist 对象存储
+ALIST_BASE_URL=https://alist.xiaoyyua.top
+ALIST_API_TOKEN=openlist-80a43f35-c303-4d62-bd76-9e23d29833a5rn1vyTvIn2a06fEOaaUtdGMwXUReL3sW6gO6fobKMNrmRufbIAHPpY8ZIJJrFLM0
+ALIST_FIRMWARE_PATH=/S3-Rainyun-18376752486(11323)/alist1/guest/pir_download

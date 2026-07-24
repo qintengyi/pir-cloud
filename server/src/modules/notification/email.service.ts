@@ -109,15 +109,26 @@ class EmailServiceClass {
    * 发送验证码邮件
    * @param to 收件人邮箱
    * @param code 验证码
-   * @param type 验证码类型（注册/重置密码）
+   * @param type 验证码类型（注册/重置密码/绑定邮箱）
    */
   async sendVerificationEmail(
     to: string,
     code: string,
-    type: 'register' | 'reset_password',
+    type: 'register' | 'reset_password' | 'bind_email',
   ): Promise<void> {
-    const subject = type === 'register' ? '【pir-cloud】注册验证码' : '【pir-cloud】密码重置验证码';
-    const purpose = type === 'register' ? '注册账号' : '重置密码';
+    const subjectMap: Record<string, string> = {
+      register: '【pir-cloud】注册验证码',
+      reset_password: '【pir-cloud】密码重置验证码',
+      bind_email: '【pir-cloud】邮箱绑定验证码',
+    };
+    const purposeMap: Record<string, string> = {
+      register: '注册账号',
+      reset_password: '重置密码',
+      bind_email: '绑定邮箱',
+    };
+
+    const subject = subjectMap[type] || '【pir-cloud】验证码';
+    const purpose = purposeMap[type] || '身份验证';
 
     const html = `
       <div style="max-width: 480px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">

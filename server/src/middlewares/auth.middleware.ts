@@ -39,6 +39,8 @@ export async function authMiddleware(
       membership_level: true,
       membership_expire_at: true,
       qq_number: true,
+      email_verified: true,
+      oidc_sub: true,
     },
   });
 

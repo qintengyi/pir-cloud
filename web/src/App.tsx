@@ -8,6 +8,8 @@ import AdminLayout from './components/Layout/AdminLayout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import OidcCallbackPage from './pages/auth/OidcCallbackPage';
+import BindEmailPage from './pages/auth/BindEmailPage';
 
 import DashboardPage from './pages/dashboard/DashboardPage';
 import DevicesPage from './pages/devices/DevicesPage';
@@ -33,6 +35,19 @@ export default function App() {
       <Route path={ROUTE_PATHS.LOGIN} element={isAuthenticated ? <Navigate to={ROUTE_PATHS.DASHBOARD} /> : <LoginPage />} />
       <Route path={ROUTE_PATHS.REGISTER} element={isAuthenticated ? <Navigate to={ROUTE_PATHS.DASHBOARD} /> : <RegisterPage />} />
       <Route path={ROUTE_PATHS.FORGOT_PASSWORD} element={isAuthenticated ? <Navigate to={ROUTE_PATHS.DASHBOARD} /> : <ForgotPasswordPage />} />
+
+      {/* OIDC 回调页面（无需 AuthGuard） */}
+      <Route path={ROUTE_PATHS.OIDC_CALLBACK} element={<OidcCallbackPage />} />
+
+      {/* 绑定邮箱页面（需 AuthGuard 但允许 emailVerified=false） */}
+      <Route
+        path={ROUTE_PATHS.BIND_EMAIL}
+        element={
+          <AuthGuard>
+            <BindEmailPage />
+          </AuthGuard>
+        }
+      />
 
       <Route
         path={ROUTE_PATHS.DASHBOARD}

@@ -1,7 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { adminFirmwareService } from './firmware.service';
 import { success, paginated } from '../../../utils/response';
-import fs from 'fs';
 
 /**
  * 管理员 - 固件版本管理控制器
@@ -139,18 +138,13 @@ export async function downloadFirmwareHandler(
       return;
     }
 
-    const { fullPath, exists } = adminFirmwareService.resolveDiskPath(fw);
+    const { fullPath, exists } = await adminFirmwareService.resolveDiskPath(fw);
     if (!exists) {
       reply.status(404).send({ code: 4001, message: '固件文件不存在', data: null });
       return;
     }
 
-    const buffer = fs.readFileSync(fullPath);
-    reply
-      .header('Content-Type', 'application/octet-stream')
-      .header('Content-Length', String(buffer.length))
-      .header('Content-Disposition', `attachment; filename="${encodeURIComponent(fw.original_name)}"`)
-      .send(buffer);
+    reply.redirect(302, fullPath);
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({
       code: err.code || 5001,
