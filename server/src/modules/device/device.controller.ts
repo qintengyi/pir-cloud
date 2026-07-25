@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { deviceService } from './device.service';
 import { success, successMessage, paginated, errorWithCode, ErrorCode } from '../../utils/response';
-import type { NotifyChannel } from '../../types';
+import type { NotifyChannel, DeviceType } from '../../types';
 
 /**
  * 设备模块控制器
@@ -14,8 +14,12 @@ export async function listDevicesHandler(
 ): Promise<void> {
   try {
     const userId = request.user.id;
-    const { page = 1, pageSize = 20 } = request.query as { page?: number; pageSize?: number };
-    const result = await deviceService.listDevices(userId, page, pageSize);
+    const { page = 1, pageSize = 20, deviceType } = request.query as {
+      page?: number;
+      pageSize?: number;
+      deviceType?: DeviceType;
+    };
+    const result = await deviceService.listDevices(userId, page, pageSize, deviceType);
     paginated(reply, result.list, result.total, result.page, result.pageSize);
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({

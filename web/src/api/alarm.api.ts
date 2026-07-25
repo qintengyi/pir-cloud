@@ -1,10 +1,11 @@
 import apiClient from './client';
-import type { ApiResponse, PaginatedData, AlarmLog, AlarmStats } from '../types';
+import type { ApiResponse, PaginatedData, AlarmLog, AlarmStats, DeviceType } from '../types';
 
 /** 告警日志列表 */
 export async function listAlarms(params: {
   deviceId?: number;
   type?: string;
+  deviceType?: DeviceType;
   startDate?: string;
   endDate?: string;
   page?: number;

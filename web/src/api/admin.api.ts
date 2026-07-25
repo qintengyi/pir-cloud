@@ -7,13 +7,15 @@ import type {
   AdminUserDetail,
   OrderInfo,
   SystemConfigs,
+  DeviceType,
 } from '../types';
 
 /** 批量生成激活码 */
-export async function generateActivationCodes(count: number, prefix?: string) {
+export async function generateActivationCodes(count: number, prefix?: string, deviceType: DeviceType = 'infrared') {
   const res = await apiClient.post<ApiResponse<{ codes: string[] }>>('/admin/activation/generate', {
     count,
     prefix,
+    deviceType,
   });
   return res.data.data;
 }
@@ -21,6 +23,7 @@ export async function generateActivationCodes(count: number, prefix?: string) {
 /** 激活码列表 */
 export async function listActivationCodes(params: {
   status?: string;
+  deviceType?: DeviceType;
   page?: number;
   pageSize?: number;
 }) {
@@ -37,10 +40,13 @@ export async function disableActivationCode(id: number) {
 }
 
 /** 导出激活码 CSV（返回下载 URL） */
-export function exportActivationCodesUrl(status?: string): string {
+export function exportActivationCodesUrl(params?: { status?: string; deviceType?: DeviceType }): string {
   const baseURL = apiClient.defaults.baseURL;
-  const params = status ? `?status=${status}` : '';
-  return `${baseURL}/admin/activation/export${params}`;
+  const queryParts: string[] = [];
+  if (params?.status) queryParts.push(`status=${params.status}`);
+  if (params?.deviceType) queryParts.push(`deviceType=${params.deviceType}`);
+  const query = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  return `${baseURL}/admin/activation/export${query}`;
 }
 
 /** 用户列表 */

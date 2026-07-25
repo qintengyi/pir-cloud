@@ -14,6 +14,7 @@ interface DeviceInfo {
   id: number;
   name: string;
   user_id: number;
+  device_type: string;
 }
 
 interface EventInfo {
@@ -142,7 +143,9 @@ class NotificationServiceClass {
       return;
     }
 
-    const alarmType = '人体检测告警';
+    const alarmType = device.device_type === 'microwave'
+      ? '微波人体检测告警'
+      : '红外人体检测告警';
     const result = await EmailService.sendAlarmEmail(email, device.name, event.created_at, alarmType);
 
     if (result.success) {
@@ -188,10 +191,11 @@ class NotificationServiceClass {
       return OneBotService.sendMessage(qqNumber, warmupMessage);
     }
 
+    const typePrefix = device.device_type === 'microwave' ? '微波' : '红外';
     const tag =
-      event.type === 'alarm' ? '有人' :
-      event.type === 'online' ? '上线' :
-      event.type === 'offline' ? '下线' : '通知';
+      event.type === 'alarm' ? `${typePrefix}·有人` :
+      event.type === 'online' ? `${typePrefix}·上线` :
+      event.type === 'offline' ? `${typePrefix}·下线` : '通知';
     const rssi = event.detail?.report_data?.rssi ?? event.detail?.rssi ?? null;
     const message = `[${tag}]\n设备:${device.name}\n时间:${formattedTime}\nWiFi强度:${this.rssiToPercent(rssi)}%`;
 

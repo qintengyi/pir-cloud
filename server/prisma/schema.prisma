@@ -2,7 +2,8 @@
 // pir-cloud 数据库 Schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -50,6 +51,11 @@ enum VerificationCodeType {
   register
   reset_password
   bind_email
+}
+
+enum DeviceType {
+  infrared
+  microwave
 }
 
 // ==================== 模型 ====================
@@ -113,6 +119,7 @@ model ActivationCode {
   bound_at    DateTime?
   created_at  DateTime             @default(now())
   updated_at  DateTime             @updatedAt
+  device_type DeviceType           @default(infrared)
 
   device      Device?
   user        User?                @relation(fields: [user_id], references: [id])
@@ -121,6 +128,7 @@ model ActivationCode {
   @@index([code])
   @@index([status])
   @@index([created_by])
+  @@index([device_type])
   @@map("activation_codes")
 }
 
@@ -135,6 +143,7 @@ model Device {
   last_heartbeat_at  DateTime?
   created_at         DateTime      @default(now())
   updated_at         DateTime      @updatedAt
+  device_type        DeviceType    @default(infrared)
 
   user               User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   activation_code    ActivationCode @relation(fields: [activation_code_id], references: [id])
@@ -144,6 +153,7 @@ model Device {
   @@index([user_id])
   @@index([status])
   @@index([device_token])
+  @@index([device_type])
   @@map("devices")
 }
 
@@ -233,21 +243,25 @@ model VerificationCode {
 
 // 固件版本（云端 OTA / Web 端刷写）
 model FirmwareVersion {
-  id            Int      @id @default(autoincrement())
-  version       String   @unique @db.VarChar(50) // 如 "1.0.0"
-  original_name String   @db.VarChar(255) // 用户上传时的原始文件名
-  disk_filename String   @db.VarChar(255) // 服务端落盘文件名（唯一，含随机前缀）
+  id            Int        @id @default(autoincrement())
+  version       String     @db.VarChar(50) // 如 "1.0.0"（联合唯一，见下方 @@unique）
+  original_name String     @db.VarChar(255) // 用户上传时的原始文件名
+  disk_filename String     @db.VarChar(255) // 服务端落盘文件名（唯一，含随机前缀）
   file_size     Int
-  checksum      String   @db.VarChar(64) // sha256
-  is_latest     Boolean  @default(false)
-  changelog     String?  @db.Text
+  checksum      String     @db.VarChar(64) // sha256
+  is_latest     Boolean    @default(false)
+  changelog     String?    @db.Text
   created_by    Int
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+  device_type   DeviceType @default(infrared)
 
-  creator       User     @relation("FirmwareCreator", fields: [created_by], references: [id])
+  creator       User       @relation("FirmwareCreator", fields: [created_by], references: [id])
 
+  @@unique([version, device_type])
   @@index([is_latest])
+  @@index([device_type])
+  @@index([is_latest, device_type])
   @@map("firmware_versions")
 }
 

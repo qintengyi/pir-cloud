@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { alarmService } from './alarm.service';
 import { paginated, success } from '../../utils/response';
+import type { DeviceType } from '../../types';
 
 /**
  * 告警模块控制器
@@ -16,6 +17,7 @@ export async function listAlarmsHandler(
     const query = request.query as {
       deviceId?: string;
       type?: string;
+      deviceType?: string;
       startDate?: string;
       endDate?: string;
       page?: string;
@@ -25,6 +27,7 @@ export async function listAlarmsHandler(
     const filters: any = {};
     if (query.deviceId) filters.deviceId = parseInt(query.deviceId, 10);
     if (query.type) filters.type = query.type as any;
+    if (query.deviceType) filters.deviceType = query.deviceType as DeviceType;
     if (query.startDate) filters.startDate = new Date(query.startDate);
     if (query.endDate) filters.endDate = new Date(query.endDate);
 

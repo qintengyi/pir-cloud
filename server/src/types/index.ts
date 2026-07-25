@@ -76,6 +76,9 @@ export interface ReportData {
 /** 通知渠道类型 */
 export type NotifyChannel = 'email' | 'qq_bot';
 
+/** 设备类型（红外/微波），全链路统一小写 */
+export type DeviceType = 'infrared' | 'microwave';
+
 /** 验证码类型 */
 export type VerificationCodeType = 'register' | 'reset_password' | 'bind_email';
 

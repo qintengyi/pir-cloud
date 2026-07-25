@@ -1,8 +1,8 @@
 import apiClient from './client';
-import type { ApiResponse, PaginatedData, FirmwareVersionInfo, LatestFirmwareInfo } from '../types';
+import type { ApiResponse, PaginatedData, FirmwareVersionInfo, LatestFirmwareInfo, DeviceType } from '../types';
 
 /** 固件版本列表 */
-export async function listFirmwares(params: { page?: number; pageSize?: number }) {
+export async function listFirmwares(params: { page?: number; pageSize?: number; deviceType?: DeviceType }) {
   const res = await apiClient.get<ApiResponse<PaginatedData<FirmwareVersionInfo>>>('/admin/firmware', {
     params,
   });
@@ -15,11 +15,13 @@ export async function uploadFirmware(data: {
   changelog?: string;
   isLatest: boolean;
   file: File;
+  deviceType?: DeviceType;
 }) {
   const form = new FormData();
   form.append('version', data.version);
   if (data.changelog) form.append('changelog', data.changelog);
   form.append('isLatest', String(data.isLatest));
+  form.append('deviceType', data.deviceType || 'infrared');
   form.append('file', data.file);
   const res = await apiClient.post<ApiResponse<FirmwareVersionInfo>>('/admin/firmware/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -46,7 +48,9 @@ export function downloadFirmwareUrl(id: number): string {
 }
 
 /** 获取最新固件元数据（公开接口） */
-export async function getLatestFirmware() {
-  const res = await apiClient.get<ApiResponse<LatestFirmwareInfo>>('/firmware/latest');
+export async function getLatestFirmware(deviceType?: DeviceType) {
+  const params: Record<string, any> = {};
+  if (deviceType) params.deviceType = deviceType;
+  const res = await apiClient.get<ApiResponse<LatestFirmwareInfo>>('/firmware/latest', { params });
   return res.data.data;
 }

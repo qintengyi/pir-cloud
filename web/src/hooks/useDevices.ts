@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import * as deviceApi from '../api/device.api';
+import type { DeviceType } from '../types';
 
 /**
  * 设备列表数据 Hook
  */
-export function useDevices(page: number = 1, pageSize: number = 20) {
+export function useDevices(page: number = 1, pageSize: number = 20, deviceType?: DeviceType) {
   return useQuery({
-    queryKey: ['devices', page, pageSize],
-    queryFn: () => deviceApi.listDevices(page, pageSize),
+    queryKey: ['devices', page, pageSize, deviceType],
+    queryFn: () => deviceApi.listDevices(page, pageSize, deviceType),
     staleTime: 30 * 1000,
   });
 }

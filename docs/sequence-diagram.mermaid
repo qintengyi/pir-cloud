@@ -1,0 +1,138 @@
+%% pir-cloud 微波分支 — 时序图
+%% 包含：设备配网激活、上报告警(差异化文案)、固件OTA、面板绑定设备(带类型)
+
+%% ==================== 1. 设备配网激活流程（微波设备） ====================
+sequenceDiagram
+    autonumber
+    participant Device as ESP32-S3 设备
+    participant AP as AP Portal (WebServer)
+    participant Storage as Storage (NVS)
+    participant Server as 后端 API
+
+    Note over Device,Server: 阶段一：AP 配网
+    Device->>Device: 上电 setup()
+    Device->>Storage: begin() 读取 NVS
+    Storage-->>Device: 无 WiFi 凭据
+    Device->>Device: WifiManager.enterApConfig()
+    Device->>AP: 创建热点 PirCloud-MW-Setup-XXXX
+    Note over AP: DNSServer Captive Portal
+
+    User->>AP: 连接热点 → 访问 192.168.4.1
+    AP-->>User: 返回配网页面 HTML
+    User->>AP: POST /set {ssid, pass, code}
+    AP->>Storage: updateActivationCode(code)
+    AP->>Storage: updateWifi(ssid, pass)
+    AP-->>User: "已收到，设备即将重启"
+    AP->>Device: s_apExitSignal = true
+    Device->>Device: exitApConfig() → 重启 → WiFi.begin(ssid, pass)
+
+    Note over Device,Server: 阶段二：激活换 Token
+    Device->>Device: WiFi 已连接，检查 NVS 无 device_token
+    Device->>Server: POST /api/device/activate (X-Activation-Code: WB-XXXX-XXXX-XXXX)
+    Server->>Server: 查 ActivationCode (status=bound, device_type=microwave)
+    Server->>Server: 查关联 Device → 取 device_token
+    Server-->>Device: 200 {deviceToken, deviceId, deviceName, deviceType:"microwave"}
+    Device->>Storage: saveDeviceToken(token) 写入 NVS
+    Device->>Device: 激活完成，进入正常上报循环
+
+%% ==================== 2. 上报告警流程（按类型差异化文案） ====================
+sequenceDiagram
+    autonumber
+    participant Sensor as MicrowaveSensor
+    participant Reporter as Reporter
+    participant Server as 后端 /api/report
+    participant ReportSvc as ReportService
+    participant DB as MySQL (Prisma)
+    participant NotiSvc as NotificationService
+    participant Email as EmailService
+    participant QQ as OneBotService
+
+    Sensor->>Sensor: tick() 检测 ABSENCE→PRESENCE 边沿
+    Sensor->>Sensor: 本地防抖通过 (30s 窗口)
+    Sensor-->>Reporter: 触发上报请求
+    Reporter->>Server: POST /api/report (X-Device-Token, {status:"presence", timestamp, rssi})
+    Server->>ReportSvc: handleReport(deviceToken, data)
+    ReportSvc->>DB: validateDevice — 查 Device (select device_type)
+    DB-->>ReportSvc: {id, user_id, name, device_type:"microwave"}
+    ReportSvc->>DB: Device.update (last_report_at, status=online)
+    ReportSvc->>DB: DeviceConfig.findUnique (防抖间隔)
+    DB-->>ReportSvc: debounce_interval=30
+    ReportSvc->>ReportSvc: DebounceService.shouldTrigger → true
+    ReportSvc->>DB: Event.create {type:"alarm", detail:{message:"微波人体检测告警", report_data:{...}}}
+    Note over ReportSvc: message 按 device_type 动态：<br/>microwave → "微波人体检测告警"<br/>infrared → "红外人体检测告警"
+    ReportSvc->>NotiSvc: dispatch({id, name, user_id, device_type:"microwave"}, event)
+    Note over NotiSvc: 异步 setImmediate
+
+    NotiSvc->>DB: DeviceConfig.findUnique (notify_channels)
+    DB-->>NotiSvc: channels=["email","qq_bot"]
+    NotiSvc->>DB: User.findUnique (email, qq_number, membership)
+    DB-->>NotiSvc: {email, qq_number, isPremium=true}
+
+    Note over NotiSvc,Email: 邮件渠道
+    NotiSvc->>NotiSvc: alarmType = "微波人体检测告警" (按 device_type)
+    NotiSvc->>Email: sendAlarmEmail(email, deviceName, time, "微波人体检测告警")
+    Email-->>NotiSvc: {success: true}
+
+    Note over NotiSvc,QQ: QQ 渠道
+    NotiSvc->>NotiSvc: tag = "[微波·有人]" (按 device_type 加前缀)
+    NotiSvc->>QQ: sendMessage(qqNumber, "[微波·有人]\n设备:xxx\n时间:xxx\nWiFi强度:xx%")
+    QQ-->>NotiSvc: true
+
+    NotiSvc-->>ReportSvc: dispatch 完成
+    Server-->>Reporter: 200 {message:"上报成功"}
+
+%% ==================== 3. 固件 OTA 流程 ====================
+sequenceDiagram
+    autonumber
+    participant Device as ESP32-S3 设备
+    participant OtaMgr as OtaManager
+    participant Storage as Storage (NVS)
+    participant Server as 后端 /api/firmware
+    participant Alist as Alist 存储
+
+    Note over Device: loop 中周期性检查 (每小时)
+    Device->>OtaMgr: tick()
+    OtaMgr->>Storage: getFwVersion()
+    Storage-->>OtaMgr: "1.0.0" (当前版本)
+    OtaMgr->>Server: GET /api/firmware/latest?deviceType=microwave
+    Server->>Server: getLatest("microwave")
+    Server-->>OtaMgr: 200 {version:"1.1.0", downloadUrl:"/api/firmware/download/latest?deviceType=microwave", checksum:"sha256..."}
+    OtaMgr->>OtaMgr: 版本比对 1.1.0 > 1.0.0 → 有新版
+    OtaMgr->>Device: LED 指示 OTA 进行中
+
+    OtaMgr->>Server: GET /api/firmware/download/latest?deviceType=microwave
+    Server->>Alist: 302 重定向到 Alist 下载地址
+    Alist-->>OtaMgr: 固件 bin 文件流
+    OtaMgr->>OtaMgr: Update.begin(fileSize)
+    loop 分块写入
+        OtaMgr->>OtaMgr: Update.write(chunk)
+    end
+    OtaMgr->>OtaMgr: Update.end() → 校验通过
+    OtaMgr->>Storage: setFwVersion("1.1.0")
+    OtaMgr->>Device: ESP.restart() → 重启到新固件
+    Note over Device: 新固件启动，版本号 1.1.0
+
+%% ==================== 4. 面板绑定设备流程（带类型） ====================
+sequenceDiagram
+    autonumber
+    participant User as 用户(浏览器)
+    participant Frontend as 前端 React
+    participant Server as 后端 /api/devices/bind
+    participant DeviceSvc as DeviceService
+    participant DB as MySQL (Prisma)
+
+    User->>Frontend: 输入激活码 WB-XXXX-XXXX-XXXX
+    User->>Frontend: 点击"绑定"
+    Frontend->>Server: POST /api/devices/bind {activationCode}
+    Server->>DeviceSvc: bindDevice(userId, activationCode)
+    DeviceSvc->>DB: ActivationCode.findUnique (含 device_type)
+    DB-->>DeviceSvc: {id, code, status:"unused", device_type:"microwave"}
+    DeviceSvc->>DeviceSvc: 校验 status=unused ✓
+    DeviceSvc->>DeviceSvc: generateDeviceToken()
+    DeviceSvc->>DB: $transaction { Device.create(device_type="microwave"),<br/>DeviceConfig.create,<br/>ActivationCode.update(status="bound") }
+    DB-->>DeviceSvc: newDevice {id, name, device_token, device_type:"microwave"}
+    DeviceSvc-->>Server: {id, name, deviceToken, status, deviceType:"microwave", createdAt}
+    Server-->>Frontend: 200 {code:0, data:{device:{...,deviceType:"microwave"}}}
+    Frontend->>Frontend: 绑定成功，显示设备类型 Chip
+    Note over Frontend: DEVICE_TYPE_MAP["microwave"] → {label:"微波", icon:Radar}
+    Frontend-->>User: 显示 "设备类型: 微波" + Radar 图标 Chip

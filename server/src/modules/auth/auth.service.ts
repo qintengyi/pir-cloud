@@ -421,6 +421,96 @@ export class AuthService {
   }
 
   /**
+   * 绑定 OIDC 认证（已有用户绑定 QQ 一键登录）
+   * 将 OIDC 账号的 oidc_sub 绑定到当前用户，若用户无 QQ 号且 OIDC 提供了 QQ 号则一并设置
+   * @param userId 用户 ID
+   * @param oidcSub OIDC 用户唯一标识
+   * @param qqNumber QQ 号（可选，OIDC 提供时使用）
+   * @returns 更新后的用户公开信息
+   */
+  async bindOidc(userId: number, oidcSub: string, qqNumber?: string): Promise<UserPublicInfo> {
+    // 检查 oidc_sub 是否已被其他用户绑定
+    const conflictUser = await prisma.user.findFirst({
+      where: {
+        oidc_sub: oidcSub,
+        NOT: { id: userId },
+      },
+    });
+    if (conflictUser) {
+      const error = new Error('该 OIDC 账号已被其他用户绑定');
+      (error as any).code = 1003;
+      (error as any).statusCode = 409;
+      throw error;
+    }
+
+    // 获取当前用户记录
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      const error = new Error('用户不存在');
+      (error as any).code = 3004;
+      (error as any).statusCode = 401;
+      throw error;
+    }
+
+    // 如果用户当前没有 QQ 号且 OIDC 提供了 QQ 号，则同时设置
+    const updateData: Prisma.UserUpdateInput = { oidc_sub: oidcSub };
+    if (!user.qq_number && qqNumber) {
+      updateData.qq_number = qqNumber;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    logger.info(
+      { userId, oidcSub, qqSet: !user.qq_number && !!qqNumber },
+      'OIDC bound successfully',
+    );
+    return toUserPublicInfo(updatedUser);
+  }
+
+  /**
+   * 解绑 OIDC 认证
+   * 清空当前用户的 oidc_sub，安全检查确保用户仍有其他登录方式
+   * @param userId 用户 ID
+   * @returns 更新后的用户公开信息
+   */
+  async unbindOidc(userId: number): Promise<UserPublicInfo> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      const error = new Error('用户不存在');
+      (error as any).code = 3004;
+      (error as any).statusCode = 401;
+      throw error;
+    }
+
+    // 安全检查：placeholder 邮箱不能解绑（没有其他登录方式）
+    if (user.email.endsWith('@placeholder.pir-cloud.local')) {
+      const error = new Error('当前账号仅支持 OIDC 登录，无法解绑');
+      (error as any).code = 4002;
+      (error as any).statusCode = 400;
+      throw error;
+    }
+
+    // 安全检查：邮箱未验证不能解绑（解绑后可能无法登录）
+    if (!user.email_verified) {
+      const error = new Error('邮箱未验证，解绑后将无法登录，请先验证邮箱');
+      (error as any).code = 4003;
+      (error as any).statusCode = 400;
+      throw error;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { oidc_sub: null },
+    });
+
+    logger.info({ userId }, 'OIDC unbound successfully');
+    return toUserPublicInfo(updatedUser);
+  }
+
+  /**
    * 验证验证码
    * @param email 邮箱
    * @param code 验证码

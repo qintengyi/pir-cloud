@@ -19,6 +19,8 @@ import {
   DialogActions,
   Card,
   InputAdornment,
+  Chip,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,6 +29,8 @@ import {
   Delete as DeleteIcon,
   Settings as SettingsIcon,
   Visibility as VisibilityIcon,
+  Sensors as SensorsIcon,
+  Radar as RadarIcon,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDevices } from '../../hooks/useDevices';
@@ -37,10 +41,10 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import BindDeviceDialog from '../../components/device/BindDeviceDialog';
 import DeviceConfigDialog from '../../components/device/DeviceConfigDialog';
-import { DEVICE_STATUS_MAP, ROUTE_PATHS } from '../../utils/constants';
+import { DEVICE_STATUS_MAP, ROUTE_PATHS, DEVICE_TYPE_MAP } from '../../utils/constants';
 import { formatRelativeTime } from '../../utils/format';
 import * as deviceApi from '../../api/device.api';
-import type { DeviceInfo } from '../../types';
+import type { DeviceInfo, DeviceType } from '../../types';
 
 export default function DevicesPage() {
   const navigate = useNavigate();
@@ -50,6 +54,7 @@ export default function DevicesPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState('');
   const [bindDialogOpen, setBindDialogOpen] = useState(false);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | null>(null);
@@ -57,7 +62,7 @@ export default function DevicesPage() {
   const [deviceToDelete, setDeviceToDelete] = useState<DeviceInfo | null>(null);
 
   const debouncedSearch = useDebounce(search, 300);
-  const { data, isLoading } = useDevices(page + 1, pageSize);
+  const { data, isLoading } = useDevices(page + 1, pageSize, (deviceTypeFilter || undefined) as DeviceType | undefined);
   const devices = data?.list || [];
 
   const filteredDevices = debouncedSearch
@@ -116,7 +121,7 @@ export default function DevicesPage() {
 
       <Card sx={{ borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
 
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, display: 'flex', gap: 2 }}>
           <TextField
             placeholder="搜索设备名称..."
             value={search}
@@ -131,6 +136,18 @@ export default function DevicesPage() {
               ),
             }}
           />
+          <TextField
+            select
+            size="small"
+            label="设备类型"
+            value={deviceTypeFilter}
+            onChange={(e) => { setDeviceTypeFilter(e.target.value); setPage(0); }}
+            sx={{ width: 140 }}
+          >
+            <MenuItem value="">全部</MenuItem>
+            <MenuItem value="infrared">红外</MenuItem>
+            <MenuItem value="microwave">微波</MenuItem>
+          </TextField>
         </Box>
 
         {filteredDevices.length === 0 ? (
@@ -148,6 +165,7 @@ export default function DevicesPage() {
                 <TableHead>
                   <TableRow sx={{ backgroundColor: 'grey.50' }}>
                     <TableCell>设备名称</TableCell>
+                    <TableCell>设备类型</TableCell>
                     <TableCell>激活码 ID</TableCell>
                     <TableCell>状态</TableCell>
                     <TableCell>最后上报</TableCell>
@@ -256,6 +274,15 @@ function DeviceRow({
             {device.name}
           </Typography>
         )}
+      </TableCell>
+      <TableCell>
+        <Chip
+          size="small"
+          icon={device.deviceType === 'microwave' ? <RadarIcon /> : <SensorsIcon />}
+          label={DEVICE_TYPE_MAP[device.deviceType]?.label || device.deviceType}
+          color={DEVICE_TYPE_MAP[device.deviceType]?.color || 'default'}
+          variant="outlined"
+        />
       </TableCell>
       <TableCell>
         <Typography variant="body2" color="text.secondary">

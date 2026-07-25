@@ -9,11 +9,14 @@ import {
   Alert,
   Box,
   Typography,
+  Chip,
 } from '@mui/material';
+import { Sensors as SensorsIcon, Radar as RadarIcon } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../hooks/useToast';
 import { ApiError } from '../../api/client';
 import * as deviceApi from '../../api/device.api';
+import { DEVICE_TYPE_MAP } from '../../utils/constants';
 import type { DeviceInfo } from '../../types';
 
 interface BindDeviceDialogProps {
@@ -79,6 +82,16 @@ export default function BindDeviceDialog({ open, onClose }: BindDeviceDialogProp
             <Box sx={{ p: 2, backgroundColor: 'grey.50', borderRadius: '8px' }}>
               <Typography variant="body2" color="text.secondary">设备名称</Typography>
               <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>{boundDevice.name}</Typography>
+              <Typography variant="body2" color="text.secondary">设备类型</Typography>
+              <Box sx={{ mb: 1 }}>
+                <Chip
+                  size="small"
+                  icon={boundDevice.deviceType === 'microwave' ? <RadarIcon /> : <SensorsIcon />}
+                  label={DEVICE_TYPE_MAP[boundDevice.deviceType]?.label || boundDevice.deviceType}
+                  color={DEVICE_TYPE_MAP[boundDevice.deviceType]?.color || 'default'}
+                  variant="outlined"
+                />
+              </Box>
               <Typography variant="body2" color="text.secondary">设备 Token</Typography>
               <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
                 {boundDevice.deviceToken}
@@ -96,7 +109,7 @@ export default function BindDeviceDialog({ open, onClose }: BindDeviceDialogProp
             onChange={(e) => setActivationCode(e.target.value)}
             placeholder="WB-XXXX-XXXX-XXXX"
             sx={{ mt: 1 }}
-            helperText="输入管理员提供的激活码进行设备绑定"
+            helperText="输入管理员提供的激活码进行设备绑定，激活码已包含设备类型，绑定后自动识别"
           />
         )}
       </DialogContent>

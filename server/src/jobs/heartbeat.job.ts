@@ -24,7 +24,7 @@ async function checkOfflineDevices(): Promise<void> {
           lt: timeoutThreshold,
         },
       },
-      select: { id: true, user_id: true, name: true },
+      select: { id: true, user_id: true, name: true, device_type: true },
     });
 
     if (timeoutDevices.length === 0) {
@@ -34,7 +34,7 @@ async function checkOfflineDevices(): Promise<void> {
     logger.info({ count: timeoutDevices.length }, 'Found offline devices (heartbeat timeout)');
 
     for (const device of timeoutDevices) {
-      await markOffline(device.id, device.user_id, device.name);
+      await markOffline(device.id, device.user_id, device.name, device.device_type);
     }
   } catch (err) {
     logger.error({ err }, 'Heartbeat job failed');
@@ -46,8 +46,9 @@ async function checkOfflineDevices(): Promise<void> {
  * @param deviceId 设备 ID
  * @param userId 用户 ID
  * @param deviceName 设备名称
+ * @param deviceType 设备类型
  */
-async function markOffline(deviceId: number, userId: number, deviceName: string): Promise<void> {
+async function markOffline(deviceId: number, userId: number, deviceName: string, deviceType: string): Promise<void> {
   try {
     
     await prisma.device.update({
@@ -71,7 +72,7 @@ async function markOffline(deviceId: number, userId: number, deviceName: string)
 
     setImmediate(() => {
       NotificationService.dispatch(
-        { id: deviceId, name: deviceName, user_id: userId },
+        { id: deviceId, name: deviceName, user_id: userId, device_type: deviceType },
         { id: event.id, type: event.type, detail: event.detail, created_at: event.created_at },
       ).catch((err) => {
         logger.error({ err, deviceId }, 'Offline notification dispatch failed');

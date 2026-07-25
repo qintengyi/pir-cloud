@@ -1,7 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { logger } from '../../utils/logger';
 import { generateDeviceToken } from '../../utils/crypto';
-import type { NotifyChannel } from '../../types';
+import type { NotifyChannel, DeviceType } from '../../types';
 
 /**
  * 设备服务
@@ -14,14 +14,18 @@ export class DeviceService {
    * @param userId 用户 ID
    * @param page 页码
    * @param pageSize 每页条数
+   * @param deviceType 设备类型过滤（可选）
    * @returns 分页设备列表
    */
-  async listDevices(userId: number, page: number, pageSize: number) {
+  async listDevices(userId: number, page: number, pageSize: number, deviceType?: DeviceType) {
     const skip = (page - 1) * pageSize;
+
+    const where: any = { user_id: userId };
+    if (deviceType) where.device_type = deviceType;
 
     const [devices, total] = await Promise.all([
       prisma.device.findMany({
-        where: { user_id: userId },
+        where,
         include: {
           activation_code: {
             select: { code: true },
@@ -31,7 +35,7 @@ export class DeviceService {
         skip,
         take: pageSize,
       }),
-      prisma.device.count({ where: { user_id: userId } }),
+      prisma.device.count({ where }),
     ]);
 
     const list = devices.map((d) => ({
@@ -39,6 +43,7 @@ export class DeviceService {
       name: d.name,
       deviceToken: d.device_token,
       status: d.status,
+      deviceType: d.device_type,
       activationCode: d.activation_code.code,
       lastReportAt: d.last_report_at?.toISOString() || null,
       lastHeartbeatAt: d.last_heartbeat_at?.toISOString() || null,
@@ -76,6 +81,7 @@ export class DeviceService {
         name: device.name,
         deviceToken: device.device_token,
         status: device.status,
+        deviceType: device.device_type,
         activationCode: device.activation_code.code,
         lastReportAt: device.last_report_at?.toISOString() || null,
         lastHeartbeatAt: device.last_heartbeat_at?.toISOString() || null,
@@ -208,6 +214,8 @@ export class DeviceService {
           name: '未命名设备',
           device_token: deviceToken,
           status: 'offline',
+          // 设备类型从激活码继承（用户无需手动选类型）
+          device_type: activationCode.device_type,
         },
       });
 
@@ -240,6 +248,7 @@ export class DeviceService {
       name: device.name,
       deviceToken: device.device_token,
       status: device.status,
+      deviceType: device.device_type,
       createdAt: device.created_at.toISOString(),
     };
   }
@@ -430,7 +439,7 @@ export class DeviceService {
       where: { code: activationCodeStr },
       include: {
         device: {
-          select: { id: true, name: true, device_token: true },
+          select: { id: true, name: true, device_token: true, device_type: true },
         },
       },
     });
@@ -465,6 +474,7 @@ export class DeviceService {
       deviceToken: activationCode.device.device_token,
       deviceId: activationCode.device.id,
       deviceName: activationCode.device.name,
+      deviceType: activationCode.device.device_type,
     };
   }
 

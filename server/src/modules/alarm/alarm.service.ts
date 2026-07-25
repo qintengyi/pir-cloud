@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { logger } from '../../utils/logger';
 import type { AlarmStats } from '../../types';
 import type { EventType } from '@prisma/client';
+import type { DeviceType } from '../../types';
 
 /**
  * 告警服务
@@ -12,7 +13,7 @@ export class AlarmService {
   /**
    * 查询告警/事件日志列表（分页）
    * @param userId 用户 ID
-   * @param filters 筛选条件
+   * @param filters 筛选条件（含可选 deviceType，通过 device join 实现）
    * @param page 页码
    * @param pageSize 每页条数
    * @returns 分页事件列表
@@ -24,6 +25,7 @@ export class AlarmService {
       type?: EventType;
       startDate?: Date;
       endDate?: Date;
+      deviceType?: DeviceType;
     },
     page: number,
     pageSize: number,
@@ -46,12 +48,17 @@ export class AlarmService {
       if (filters.endDate) where.created_at.lte = filters.endDate;
     }
 
+    // deviceType 过滤通过 device join 实现
+    if (filters.deviceType) {
+      where.device = { device_type: filters.deviceType };
+    }
+
     const [events, total] = await Promise.all([
       prisma.event.findMany({
         where,
         include: {
           device: {
-            select: { id: true, name: true },
+            select: { id: true, name: true, device_type: true },
           },
         },
         orderBy: { created_at: 'desc' },
@@ -65,6 +72,7 @@ export class AlarmService {
       id: e.id,
       deviceId: e.device_id,
       deviceName: e.device.name,
+      deviceType: e.device.device_type,
       type: e.type,
       detail: e.detail,
       createdAt: e.created_at.toISOString(),

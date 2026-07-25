@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { firmwareService } from './firmware.service';
 import { success } from '../../utils/response';
+import type { DeviceType } from '../../types';
 
 /**
  * 公开固件控制器（设备/用户拉取，无需鉴权）
@@ -13,7 +14,8 @@ export async function getLatestHandler(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    const latest = await firmwareService.getLatest();
+    const { deviceType } = request.query as { deviceType?: DeviceType };
+    const latest = await firmwareService.getLatest(deviceType);
     if (!latest) {
       reply.status(404).send({ code: 4001, message: '暂无可用固件', data: null });
       return;
@@ -34,7 +36,8 @@ export async function downloadLatestHandler(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    const fw = await firmwareService.getLatestRecord();
+    const { deviceType } = request.query as { deviceType?: DeviceType };
+    const fw = await firmwareService.getLatestRecord(deviceType);
     if (!fw) {
       reply.status(404).send({ code: 4001, message: '暂无可用固件', data: null });
       return;
@@ -63,7 +66,8 @@ export async function downloadByVersionHandler(
 ): Promise<void> {
   try {
     const { version } = request.params as { version: string };
-    const fw = await firmwareService.getByVersion(version);
+    const { deviceType } = request.query as { deviceType?: DeviceType };
+    const fw = await firmwareService.getByVersion(version, deviceType);
     if (!fw) {
       reply.status(404).send({ code: 4001, message: '固件版本不存在', data: null });
       return;

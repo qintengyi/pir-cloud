@@ -92,3 +92,9 @@ export async function bindEmail(email: string, code: string) {
   });
   return res.data.data;
 }
+
+/** 解绑 OIDC 认证（QQ 一键登录） */
+export async function unbindOidc() {
+  const res = await apiClient.post<ApiResponse<{ user: UserPublicInfo }>>('/auth/oidc/unbind');
+  return res.data.data;
+}

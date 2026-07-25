@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Typography, Card, CardContent, Chip, Alert, Divider, Link, Button } from '@mui/material';
-import { Download as DownloadIcon, Memory as MemoryIcon } from '@mui/icons-material';
+import { Box, Typography, Card, CardContent, Chip, Alert, Divider, Link, Button, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Download as DownloadIcon, Memory as MemoryIcon, Sensors as SensorsIcon, Radar as RadarIcon } from '@mui/icons-material';
 import EsptoolFlasher from '../../components/flash/EsptoolFlasher';
 import { getLatestFirmware } from '../../api/firmware.api';
 import { formatDateTime } from '../../utils/format';
+import { DEVICE_TYPE_MAP } from '../../utils/constants';
+import type { DeviceType } from '../../types';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -13,12 +16,24 @@ function formatBytes(bytes: number): string {
 
 export default function FlashPage() {
   const webSerialSupported = typeof navigator !== 'undefined' && 'serial' in navigator;
+  const [deviceType, setDeviceType] = useState<DeviceType>('infrared');
+  const [flashVariant, setFlashVariant] = useState<'8MB' | '16MB'>('8MB');
+
+  const isMicrowave = deviceType === 'microwave';
+  const chipName = isMicrowave ? 'ESP32-S3' : 'ESP8266';
+  const apPrefix = isMicrowave ? 'PirCloud-MW-Setup-XXXX' : 'PirCloud-Setup-XXXX';
 
   const { data: latest } = useQuery({
-    queryKey: ['latestFirmware'],
-    queryFn: () => getLatestFirmware(),
+    queryKey: ['latestFirmware', deviceType],
+    queryFn: () => getLatestFirmware(deviceType),
     retry: false,
   });
+
+  const handleDeviceTypeChange = (_: any, value: DeviceType | null) => {
+    if (value !== null) {
+      setDeviceType(value);
+    }
+  };
 
   return (
     <Box sx={{ maxWidth: 760, mx: 'auto' }}>
@@ -26,8 +41,39 @@ export default function FlashPage() {
         刷写固件
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        用 USB 数据线将 ESP8266 设备连接到电脑，点击下方按钮即可从云端拉取最新固件并自动刷入。
+        用 USB 数据线将 {chipName} 设备连接到电脑，点击下方按钮即可从云端拉取最新固件并自动刷入。
       </Typography>
+
+      {/* 设备类型选择器 */}
+      <Box sx={{ mb: 3 }}>
+        <ToggleButtonGroup
+          value={deviceType}
+          exclusive
+          onChange={handleDeviceTypeChange}
+          size="small"
+        >
+          <ToggleButton value="infrared">
+            <SensorsIcon sx={{ mr: 0.5, fontSize: 18 }} /> 红外 (ESP8266)
+          </ToggleButton>
+          <ToggleButton value="microwave">
+            <RadarIcon sx={{ mr: 0.5, fontSize: 18 }} /> 微波 (ESP32-S3)
+          </ToggleButton>
+        </ToggleButtonGroup>
+        {isMicrowave && (
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">Flash 变体：</Typography>
+            <ToggleButtonGroup
+              value={flashVariant}
+              exclusive
+              onChange={(_, val) => val && setFlashVariant(val)}
+              size="small"
+            >
+              <ToggleButton value="8MB">8MB (N8R2)</ToggleButton>
+              <ToggleButton value="16MB">16MB (N15R8)</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        )}
+      </Box>
 
       {/* 最新固件信息 */}
       <Card sx={{ borderRadius: '12px', mb: 3 }}>
@@ -37,7 +83,18 @@ export default function FlashPage() {
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               {latest ? `最新固件 v${latest.version}` : '加载中...'}
             </Typography>
-            {latest && <Chip size="small" color="primary" label="latest" />}
+            {latest && (
+              <>
+                <Chip size="small" color="primary" label="latest" sx={{ mr: 0.5 }} />
+                <Chip
+                  size="small"
+                  icon={latest.deviceType === 'microwave' ? <RadarIcon /> : <SensorsIcon />}
+                  label={DEVICE_TYPE_MAP[latest.deviceType]?.label || latest.deviceType}
+                  color={DEVICE_TYPE_MAP[latest.deviceType]?.color || 'default'}
+                  variant="outlined"
+                />
+              </>
+            )}
           </Box>
           {latest && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, color: 'text.secondary', fontSize: 13 }}>
@@ -58,10 +115,10 @@ export default function FlashPage() {
           </Typography>
           <Alert severity="info" sx={{ mb: 2 }}>
             需使用 <strong>Chrome</strong> 或 <strong>Edge</strong> 浏览器（支持 Web Serial API）。
-            点击按钮后，浏览器会弹出串口选择窗口，选择你的 ESP8266 设备即可。
+            点击按钮后，浏览器会弹出串口选择窗口，选择你的 {chipName} 设备即可。
           </Alert>
           {webSerialSupported ? (
-            <EsptoolFlasher />
+            <EsptoolFlasher deviceType={deviceType} flashSize={isMicrowave ? flashVariant : '4MB'} />
           ) : (
             <Alert severity="warning">
               当前浏览器不支持 Web Serial API，请改用 Chrome/Edge，或使用下方「Windows 刷机器」。
@@ -101,7 +158,7 @@ export default function FlashPage() {
           刷写成功后如何配网？
         </Typography>
         <Typography variant="body2" component="div">
-          1. 设备重启后会自动创建 WiFi 热点 <strong>PirCloud-Setup-XXXX</strong>
+          1. 设备重启后会自动创建 WiFi 热点 <strong>{apPrefix}</strong>
           <br />
           2. 用手机或电脑连接该热点
           <br />

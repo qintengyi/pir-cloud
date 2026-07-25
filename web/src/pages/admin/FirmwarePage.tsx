@@ -20,18 +20,23 @@ import {
   DialogActions,
   Switch,
   FormControlLabel,
+  MenuItem,
 } from '@mui/material';
 import {
   Upload as UploadIcon,
   Download as DownloadIcon,
   Star as StarIcon,
   Delete as DeleteIcon,
+  Sensors as SensorsIcon,
+  Radar as RadarIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
+import { DEVICE_TYPE_MAP } from '../../utils/constants';
 import { formatDateTime, truncate } from '../../utils/format';
 import * as firmwareApi from '../../api/firmware.api';
+import type { DeviceType } from '../../types';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -45,17 +50,20 @@ export default function FirmwarePage() {
 
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState('');
 
   // 上传对话框状态
   const [uploadOpen, setUploadOpen] = useState(false);
   const [version, setVersion] = useState('');
   const [changelog, setChangelog] = useState('');
   const [isLatest, setIsLatest] = useState(true);
+  const [uploadDeviceType, setUploadDeviceType] = useState<DeviceType>('infrared');
   const [file, setFile] = useState<File | null>(null);
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const queryParams = { page: page + 1, pageSize };
+  const queryParams: any = { page: page + 1, pageSize };
+  if (deviceTypeFilter) queryParams.deviceType = deviceTypeFilter;
 
   const { data, isLoading } = useQuery({
     queryKey: ['adminFirmwares', queryParams],
@@ -69,6 +77,7 @@ export default function FirmwarePage() {
         changelog: changelog || undefined,
         isLatest,
         file: file!,
+        deviceType: uploadDeviceType,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminFirmwares'] });
@@ -105,6 +114,7 @@ export default function FirmwarePage() {
     setVersion('');
     setChangelog('');
     setIsLatest(true);
+    setUploadDeviceType('infrared');
     setFile(null);
   };
 
@@ -150,11 +160,26 @@ export default function FirmwarePage() {
       </Box>
 
       <Card sx={{ borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <Box sx={{ p: 2 }}>
+          <TextField
+            select
+            size="small"
+            label="设备类型"
+            value={deviceTypeFilter}
+            onChange={(e) => { setDeviceTypeFilter(e.target.value); setPage(0); }}
+            sx={{ width: 140 }}
+          >
+            <MenuItem value="">全部</MenuItem>
+            <MenuItem value="infrared">红外</MenuItem>
+            <MenuItem value="microwave">微波</MenuItem>
+          </TextField>
+        </Box>
         <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ backgroundColor: 'grey.50' }}>
                 <TableCell>版本</TableCell>
+                <TableCell>设备类型</TableCell>
                 <TableCell>文件名</TableCell>
                 <TableCell>大小</TableCell>
                 <TableCell>SHA256</TableCell>
@@ -168,6 +193,15 @@ export default function FirmwarePage() {
               {firmwares.map((fw) => (
                 <TableRow key={fw.id} hover>
                   <TableCell sx={{ fontWeight: 600 }}>v{fw.version}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      icon={fw.deviceType === 'microwave' ? <RadarIcon /> : <SensorsIcon />}
+                      label={DEVICE_TYPE_MAP[fw.deviceType]?.label || fw.deviceType}
+                      color={DEVICE_TYPE_MAP[fw.deviceType]?.color || 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
                   <TableCell sx={{ fontSize: 13 }}>{fw.originalName}</TableCell>
                   <TableCell>{formatBytes(fw.fileSize)}</TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, color: 'text.secondary' }}>
@@ -215,7 +249,7 @@ export default function FirmwarePage() {
               ))}
               {!isLoading && firmwares.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     暂无固件版本，点击右上角上传
                   </TableCell>
                 </TableRow>
@@ -250,6 +284,16 @@ export default function FirmwarePage() {
               onChange={(e) => setVersion(e.target.value)}
               placeholder="1.0.0"
             />
+            <TextField
+              select
+              fullWidth
+              label="设备类型"
+              value={uploadDeviceType}
+              onChange={(e) => setUploadDeviceType(e.target.value as DeviceType)}
+            >
+              <MenuItem value="infrared">红外</MenuItem>
+              <MenuItem value="microwave">微波</MenuItem>
+            </TextField>
             <TextField
               fullWidth
               multiline

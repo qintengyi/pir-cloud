@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { adminActivationService } from './activation.service';
 import { success, successMessage, paginated } from '../../../utils/response';
 import { generateCsvFileName } from '../../../utils/csv';
+import type { DeviceType } from '../../../types';
 
 /**
  * 管理员 - 激活码管理控制器
@@ -14,8 +15,12 @@ export async function generateCodesHandler(
 ): Promise<void> {
   try {
     const adminId = request.user.id;
-    const { count, prefix = 'WB' } = request.body as { count: number; prefix?: string };
-    const codes = await adminActivationService.generateCodes(count, prefix, adminId);
+    const { count, prefix = 'WB', deviceType = 'infrared' } = request.body as {
+      count: number;
+      prefix?: string;
+      deviceType?: DeviceType;
+    };
+    const codes = await adminActivationService.generateCodes(count, prefix, adminId, deviceType);
     success(reply, { codes }, '生成成功');
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({
@@ -34,12 +39,14 @@ export async function listCodesHandler(
   try {
     const query = request.query as {
       status?: string;
+      deviceType?: string;
       page?: string;
       pageSize?: string;
     };
 
     const filters: any = {};
     if (query.status) filters.status = query.status;
+    if (query.deviceType) filters.deviceType = query.deviceType as DeviceType;
 
     const page = parseInt(query.page || '1', 10);
     const pageSize = parseInt(query.pageSize || '20', 10);
@@ -79,9 +86,10 @@ export async function exportCodesHandler(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    const query = request.query as { status?: string };
+    const query = request.query as { status?: string; deviceType?: string };
     const filters: any = {};
     if (query.status) filters.status = query.status;
+    if (query.deviceType) filters.deviceType = query.deviceType as DeviceType;
 
     const csv = await adminActivationService.exportCodes(filters);
     const fileName = generateCsvFileName('activation_codes');

@@ -13,15 +13,16 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  Chip,
 } from '@mui/material';
-import { ArrowBack, Devices as DevicesIcon } from '@mui/icons-material';
+import { ArrowBack, Devices as DevicesIcon, Sensors as SensorsIcon, Radar as RadarIcon } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDeviceDetail } from '../../hooks/useDevices';
 import { useDeviceConfig } from '../../hooks/useDevices';
 import { useToast } from '../../hooks/useToast';
 import StatusBadge from '../../components/common/StatusBadge';
-import { DEVICE_STATUS_MAP, DEBOUNCE_RANGE, NOTIFY_CHANNEL_MAP } from '../../utils/constants';
+import { DEVICE_STATUS_MAP, DEBOUNCE_RANGE, NOTIFY_CHANNEL_MAP, DEVICE_TYPE_MAP } from '../../utils/constants';
 import { formatDateTime, formatSeconds } from '../../utils/format';
 import * as deviceApi from '../../api/device.api';
 import type { NotifyChannel } from '../../types';
@@ -110,6 +111,15 @@ export default function DeviceDetailPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <InfoRow label="设备 ID" value={`#${device.id}`} />
               <InfoRow label="设备名称" value={device.name} />
+              <InfoRow label="设备类型" value={
+                <Chip
+                  size="small"
+                  icon={device.deviceType === 'microwave' ? <RadarIcon /> : <SensorsIcon />}
+                  label={DEVICE_TYPE_MAP[device.deviceType]?.label || device.deviceType}
+                  color={DEVICE_TYPE_MAP[device.deviceType]?.color || 'default'}
+                  variant="outlined"
+                />
+              } />
               <InfoRow label="设备状态" value={<StatusBadge status={device.status} map={DEVICE_STATUS_MAP} />} />
               <InfoRow label="最后上报" value={formatDateTime(device.lastReportAt)} />
               <InfoRow label="最后心跳" value={formatDateTime(device.lastHeartbeatAt)} />

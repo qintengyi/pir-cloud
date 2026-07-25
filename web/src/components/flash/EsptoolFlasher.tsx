@@ -3,6 +3,7 @@ import { Box, Button, LinearProgress, Typography, Alert, Paper } from '@mui/mate
 import { Usb as UsbIcon } from '@mui/icons-material';
 import { useToast } from '../../hooks/useToast';
 import { getLatestFirmware } from '../../api/firmware.api';
+import type { DeviceType } from '../../types';
 
 type Status = 'idle' | 'connecting' | 'connected' | 'downloading' | 'flashing' | 'done' | 'error';
 
@@ -16,18 +17,53 @@ const STATUS_LABEL: Record<Status, string> = {
   error: '出错',
 };
 
+/** 刷写参数映射表 */
+const FLASH_PARAMS: Record<DeviceType, {
+  serialLabel: string;
+  chipRegex: RegExp;
+  flashMode: string;
+  flashFreq: string;
+  flashSize: string;
+  apHotspot: string;
+}> = {
+  infrared: {
+    serialLabel: 'ESP8266 串口',
+    chipRegex: /8266/i,
+    flashMode: 'dio',
+    flashFreq: '40m',
+    flashSize: '4MB',
+    apHotspot: 'PirCloud-Setup-XXXX',
+  },
+  microwave: {
+    serialLabel: 'ESP32-S3 串口',
+    chipRegex: /S3/i,
+    flashMode: 'dio',
+    flashFreq: '80m',
+    flashSize: '8MB',
+    apHotspot: 'PirCloud-MW-Setup-XXXX',
+  },
+};
+
+interface EsptoolFlasherProps {
+  deviceType: DeviceType;
+  flashSize?: string;
+}
+
 /**
  * Plan A: 浏览器内 Web Serial 刷写（仅 Chrome/Edge 支持）。
  * 流程：请求串口 → ESPLoader 连接并识别芯片 → 下载云端最新固件 → 擦除全片 + 写 0x0 → hard_reset。
- * 目标板 NodeMCU/Wemos D1 mini 自带 DTR/RTS 自动复位电路，可自动进下载模式。
+ * 根据 deviceType 切换刷写参数（flashSize/flashMode/flashFreq）、芯片识别正则、日志文案和配网热点名。
  */
-export default function EsptoolFlasher() {
+export default function EsptoolFlasher({ deviceType, flashSize }: EsptoolFlasherProps) {
   const { success: showSuccess, error: showError } = useToast();
   const [status, setStatus] = useState<Status>('idle');
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
   const portRef = useRef<SerialPort | null>(null);
+
+  const params = FLASH_PARAMS[deviceType];
+  const effectiveFlashSize = flashSize || params.flashSize;
 
   const log = useCallback((msg: string) => {
     setLogs((prev) => [...prev, msg].slice(-200));
@@ -43,14 +79,14 @@ export default function EsptoolFlasher() {
     setProgress(0);
     setProgressLabel('');
     setLogs([]);
-    log('请选择 ESP8266 串口设备...');
+    log(`请选择 ${params.serialLabel}设备...`);
 
     try {
       // 1. 请求串口（用户在浏览器弹窗中选择）
       const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 115200 });
       portRef.current = port;
-      log('串口已打开，正在连接 ESP8266...');
+      log(`串口已打开，正在连接 ${deviceType === 'microwave' ? 'ESP32-S3' : 'ESP8266'}...`);
 
       // 2. 动态加载 esptool-js（按需加载，减小主包体积）
       const { ESPLoader, Transport } = await import('esptool-js');
@@ -72,16 +108,16 @@ export default function EsptoolFlasher() {
       // 3. 连接并识别芯片（会复位设备）
       const chipName = await esploader.main();
       log(`已连接: ${chipName}`);
-      if (!/8266/i.test(String(chipName))) {
-        log(`⚠️ 检测到非 ESP8266 芯片（${chipName}），仍尝试继续...`);
+      if (!params.chipRegex.test(String(chipName))) {
+        log(`⚠️ 检测到非预期芯片（${chipName}），仍尝试继续...`);
       }
       setStatus('connected');
 
-      // 4. 下载云端最新固件
+      // 4. 下载云端最新固件（按设备类型拉取）
       setStatus('downloading');
       log('正在从云端下载最新固件...');
-      const latest = await getLatestFirmware();
-      // downloadUrl 形如 /api/firmware/download/latest，同源直接 fetch
+      const latest = await getLatestFirmware(deviceType);
+      // downloadUrl 形如 /api/firmware/download/latest?deviceType=xxx，同源直接 fetch
       const resp = await fetch(latest.downloadUrl);
       if (!resp.ok) throw new Error(`固件下载失败: HTTP ${resp.status}`);
       const fwArrayBuffer = await resp.arrayBuffer();
@@ -109,9 +145,9 @@ export default function EsptoolFlasher() {
 
       await esploader.writeFlash({
         fileArray: [{ data: fwData, address: 0x0 }],
-        flashMode: 'dio',
-        flashFreq: '40m',
-        flashSize: '4MB',
+        flashMode: params.flashMode,
+        flashFreq: params.flashFreq,
+        flashSize: effectiveFlashSize,
         eraseAll: true,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -128,7 +164,7 @@ export default function EsptoolFlasher() {
       setProgress(100);
       setProgressLabel('完成');
       setStatus('done');
-      showSuccess('固件刷写成功！请连接 PirCloud-Setup-XXXX 热点进行配网');
+      showSuccess(`固件刷写成功！请连接 ${params.apHotspot} 热点进行配网`);
 
       // 关闭串口（释放设备）
       try {
@@ -152,7 +188,7 @@ export default function EsptoolFlasher() {
         portRef.current = null;
       }
     }
-  }, [log, showSuccess, showError]);
+  }, [log, showSuccess, showError, deviceType, params, effectiveFlashSize]);
 
   const busy = ['connecting', 'connected', 'downloading', 'flashing'].includes(status);
 
@@ -182,7 +218,7 @@ export default function EsptoolFlasher() {
 
       {status === 'done' && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          刷写成功！设备已重启并进入配网模式：连接 WiFi 热点 <strong>PirCloud-Setup-XXXX</strong>，然后访问 <strong>http://192.168.4.1</strong> 配置 WiFi 和激活码。
+          刷写成功！设备已重启并进入配网模式：连接 WiFi 热点 <strong>{params.apHotspot}</strong>，然后访问 <strong>http://192.168.4.1</strong> 配置 WiFi 和激活码。
         </Alert>
       )}
 

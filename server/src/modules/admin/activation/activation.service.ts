@@ -3,6 +3,7 @@ import { logger } from '../../../utils/logger';
 import { generateActivationCodes } from '../../../utils/crypto';
 import { toCsv } from '../../../utils/csv';
 import type { ActivationCodeStatus } from '@prisma/client';
+import type { DeviceType } from '../../../types';
 
 /**
  * 管理员 - 激活码管理服务
@@ -13,10 +14,11 @@ export class AdminActivationService {
    * @param count 生成数量
    * @param prefix 前缀
    * @param adminId 管理员 ID
+   * @param deviceType 设备类型（默认 infrared）
    * @returns 生成的激活码数组
    */
-  async generateCodes(count: number, prefix: string, adminId: number): Promise<string[]> {
-    
+  async generateCodes(count: number, prefix: string, adminId: number, deviceType: DeviceType = 'infrared'): Promise<string[]> {
+
     const existingCodes = await prisma.activationCode.findMany({
       select: { code: true },
     });
@@ -29,28 +31,30 @@ export class AdminActivationService {
         code,
         status: 'unused' as ActivationCodeStatus,
         created_by: adminId,
+        device_type: deviceType,
       })),
     });
 
-    logger.info({ count, adminId }, 'Activation codes generated');
+    logger.info({ count, adminId, deviceType }, 'Activation codes generated');
     return codes;
   }
 
   /**
    * 查询激活码列表（分页）
-   * @param filters 筛选条件
+   * @param filters 筛选条件（含可选 deviceType）
    * @param page 页码
    * @param pageSize 每页条数
    * @returns 分页激活码列表
    */
   async listCodes(
-    filters: { status?: ActivationCodeStatus },
+    filters: { status?: ActivationCodeStatus; deviceType?: DeviceType },
     page: number,
     pageSize: number,
   ) {
     const skip = (page - 1) * pageSize;
     const where: any = {};
     if (filters.status) where.status = filters.status;
+    if (filters.deviceType) where.device_type = filters.deviceType;
 
     const [codes, total] = await Promise.all([
       prisma.activationCode.findMany({
@@ -71,6 +75,7 @@ export class AdminActivationService {
       code: c.code,
       status: c.status,
       createdBy: c.created_by,
+      deviceType: c.device_type,
       boundUser: c.user
         ? { id: c.user.id, email: c.user.email, nickname: c.user.nickname }
         : null,
@@ -115,12 +120,13 @@ export class AdminActivationService {
 
   /**
    * 导出激活码为 CSV
-   * @param filters 筛选条件
+   * @param filters 筛选条件（含可选 deviceType）
    * @returns CSV 字符串
    */
-  async exportCodes(filters: { status?: ActivationCodeStatus }): Promise<string> {
+  async exportCodes(filters: { status?: ActivationCodeStatus; deviceType?: DeviceType }): Promise<string> {
     const where: any = {};
     if (filters.status) where.status = filters.status;
+    if (filters.deviceType) where.device_type = filters.deviceType;
 
     const codes = await prisma.activationCode.findMany({
       where,
@@ -133,6 +139,7 @@ export class AdminActivationService {
     const headers = [
       { key: 'code', label: '激活码' },
       { key: 'status', label: '状态' },
+      { key: 'deviceType', label: '设备类型' },
       { key: 'boundEmail', label: '绑定用户邮箱' },
       { key: 'boundAt', label: '绑定时间' },
       { key: 'createdAt', label: '生成时间' },
@@ -141,6 +148,7 @@ export class AdminActivationService {
     const rows = codes.map((c) => ({
       code: c.code,
       status: c.status,
+      deviceType: c.device_type,
       boundEmail: c.user?.email || '',
       boundAt: c.bound_at?.toLocaleString('zh-CN') || '',
       createdAt: c.created_at.toLocaleString('zh-CN'),

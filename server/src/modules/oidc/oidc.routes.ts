@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { oidcLoginHandler, oidcCallbackHandler } from './oidc.controller';
+import { authMiddleware } from '../../middlewares/auth.middleware';
+import { oidcLoginHandler, oidcCallbackHandler, oidcBindInitHandler } from './oidc.controller';
 
 /**
  * 注册 OIDC 认证路由
@@ -14,5 +15,11 @@ export async function oidcRoutes(app: FastifyInstance): Promise<void> {
   // OIDC 回调（授权服务器重定向回来）
   app.get('/api/auth/oidc/callback', {
     handler: oidcCallbackHandler,
+  });
+
+  // 发起 OIDC 绑定（需登录态，重定向到授权服务器）
+  app.get('/api/auth/oidc/bind', {
+    preHandler: [authMiddleware],
+    handler: oidcBindInitHandler,
   });
 }

@@ -1,6 +1,7 @@
 /**
  * 全局常量定义
  */
+import type { DeviceType } from '../types';
 
 /** 路由路径 */
 export const ROUTE_PATHS = {
@@ -30,6 +31,9 @@ export const ROUTE_PATHS = {
 /** OIDC 一键登录入口（后端 302 跳转） */
 export const OIDC_LOGIN_URL = '/api/auth/oidc/login';
 
+/** OIDC 绑定入口（后端 302 跳转，需登录态） */
+export const OIDC_BIND_URL = '/api/auth/oidc/bind';
+
 /** QQ 验证机器人 QQ 号 */
 export const BOT_QQ = '2472900895';
 
@@ -44,6 +48,16 @@ export const EVENT_TYPE_MAP: Record<string, { label: string; color: 'success' | 
 export const DEVICE_STATUS_MAP: Record<string, { label: string; color: 'success' | 'default' }> = {
   online: { label: '在线', color: 'success' },
   offline: { label: '离线', color: 'default' },
+};
+
+/** 设备类型映射（label/color/icon） */
+export const DEVICE_TYPE_MAP: Record<DeviceType, {
+  label: string;
+  color: 'primary' | 'secondary';
+  icon: 'sensors' | 'radar';
+}> = {
+  infrared:  { label: '红外', color: 'primary',   icon: 'sensors' },
+  microwave: { label: '微波', color: 'secondary', icon: 'radar' },
 };
 
 /** 激活码状态映射 */

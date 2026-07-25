@@ -12,6 +12,7 @@ import {
   logoutHandler,
   meHandler,
   bindEmailHandler,
+  unbindOidcHandler,
 } from './auth.controller';
 import {
   sendCodeSchema,
@@ -81,5 +82,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     schema: bindEmailSchema,
     preHandler: [authMiddleware],
     handler: bindEmailHandler,
+  });
+
+  // 解绑 OIDC 认证（QQ 一键登录）
+  app.post('/api/auth/oidc/unbind', {
+    preHandler: [authMiddleware],
+    handler: unbindOidcHandler,
   });
 }

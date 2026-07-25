@@ -1,0 +1,296 @@
+%% pir-cloud 微波分支 — 类图
+%% 包含：Prisma 模型、后端服务、前端类型、固件模块
+
+classDiagram
+
+    %% ==================== Prisma 枚举 ====================
+    class DeviceType {
+        <<enumeration>>
+        infrared
+        microwave
+    }
+
+    %% ==================== Prisma 模型 ====================
+    class Device {
+        +Int id
+        +Int user_id
+        +Int activation_code_id
+        +String name
+        +String device_token
+        +DeviceStatus status
+        +DeviceType device_type
+        +DateTime last_report_at
+        +DateTime last_heartbeat_at
+        +DateTime created_at
+        +DateTime updated_at
+    }
+
+    class ActivationCode {
+        +Int id
+        +String code
+        +ActivationCodeStatus status
+        +DeviceType device_type
+        +Int created_by
+        +Int device_id
+        +Int user_id
+        +DateTime bound_at
+        +DateTime created_at
+        +DateTime updated_at
+    }
+
+    class FirmwareVersion {
+        +Int id
+        +String version
+        +DeviceType device_type
+        +String original_name
+        +String disk_filename
+        +Int file_size
+        +String checksum
+        +Boolean is_latest
+        +String changelog
+        +Int created_by
+        +DateTime created_at
+        +DateTime updated_at
+    }
+
+    class Event {
+        +Int id
+        +Int device_id
+        +Int user_id
+        +EventType type
+        +Json detail
+        +DateTime created_at
+    }
+
+    class DeviceConfig {
+        +Int id
+        +Int device_id
+        +Boolean notify_enabled
+        +Int debounce_interval
+        +Json notify_channels
+    }
+
+    %% 模型关系
+    DeviceType --> Device : device_type
+    DeviceType --> ActivationCode : device_type
+    DeviceType --> FirmwareVersion : device_type
+    ActivationCode "1" --> "0..1" Device : device_id
+    Device "1" --> "0..1" DeviceConfig : config
+    Device "1" --> "*" Event : events
+
+    %% ==================== 后端服务层 ====================
+    class DeviceService {
+        +bindDevice(userId: int, activationCodeStr: string) DeviceBindResult
+        +listDevices(userId: int, page: int, pageSize: int, deviceType?: DeviceType) PaginatedList
+        +getDevice(userId: int, deviceId: int) DeviceDetail
+        +activateDevice(activationCodeStr: string) ActivateResult
+        +renameDevice(userId: int, deviceId: int, name: string) DeviceInfo
+        +deleteDevice(userId: int, deviceId: int) void
+        +getDeviceConfig(userId: int, deviceId: int) DeviceConfigInfo
+        +updateDeviceConfig(userId: int, deviceId: int, config: any) DeviceConfigInfo
+        +getDeviceStats(userId: int) DeviceStats
+    }
+
+    class AdminActivationService {
+        +generateCodes(count: int, prefix: string, adminId: int, deviceType: DeviceType) string[]
+        +listCodes(filters: CodeFilters, page: int, pageSize: int) PaginatedList
+        +disableCode(codeId: int) void
+        +exportCodes(filters: CodeFilters) string
+    }
+
+    class ReportService {
+        +handleReport(deviceToken: string, activationCode: string, data: ReportData) ReportResult
+        +handleHeartbeat(deviceToken: string, data: HeartbeatData) void
+        -validateDevice(deviceToken: string, activationCode: string) DeviceValidation
+        -checkStableWarmup(device: Device, config: DeviceConfig) WarmupResult
+    }
+
+    class NotificationService {
+        +dispatch(device: DeviceInfo, event: EventInfo) void
+        -sendEmailNotification(email: string, device: DeviceInfo, event: EventInfo) void
+        -sendQQNotification(qqNumber: string, device: DeviceInfo, event: EventInfo) boolean
+        -rssiToPercent(rssi: int) int
+    }
+
+    class FirmwareService {
+        +getLatest(deviceType?: DeviceType) LatestFirmwareDto
+        +getLatestRecord(deviceType?: DeviceType) FirmwareVersion
+        +getByVersion(version: string, deviceType?: DeviceType) FirmwareVersion
+        +resolveDiskPath(diskFilename: string) PathInfo
+    }
+
+    class AdminFirmwareService {
+        +uploadFirmware(buffer: Buffer, filename: string, version: string, changelog: string, isLatest: boolean, adminId: int, deviceType: DeviceType) UploadResult
+        +listFirmwares(page: int, pageSize: int, deviceType?: DeviceType) PaginatedList
+        +setLatest(firmwareId: int) void
+        +deleteFirmware(firmwareId: int) void
+        +getFirmware(firmwareId: int) FirmwareVersion
+    }
+
+    class AlarmService {
+        +listAlarms(userId: int, filters: AlarmFilters, page: int, pageSize: int) PaginatedList
+        +getAlarmStats(userId: int, days: int) AlarmStats
+        +createAlarmEvent(deviceId: int, userId: int, detail: any) Event
+        +getRecentAlarms(userId: int, limit: int) AlarmList
+    }
+
+    %% 服务依赖关系
+    ReportService --> NotificationService : dispatch(device含device_type)
+    DeviceService --> ActivationCode : 继承 device_type
+    AdminActivationService --> ActivationCode : 写入 device_type
+    FirmwareService --> FirmwareVersion : 按 device_type 查询
+    AdminFirmwareService --> FirmwareVersion : 按 device_type 写入/清除最新
+
+    %% ==================== 前端类型层 ====================
+    class DeviceType_TS {
+        <<type>>
+        'infrared' | 'microwave'
+    }
+
+    class DeviceInfo {
+        +Int id
+        +Int userId
+        +Int activationCodeId
+        +String name
+        +String deviceToken
+        +DeviceStatus status
+        +DeviceType deviceType
+        +String lastReportAt
+        +String lastHeartbeatAt
+        +String createdAt
+    }
+
+    class FirmwareVersionInfo {
+        +Int id
+        +String version
+        +DeviceType deviceType
+        +String originalName
+        +Int fileSize
+        +String checksum
+        +Boolean isLatest
+        +String changelog
+        +Int createdBy
+        +String createdByName
+        +String createdAt
+    }
+
+    class ActivationCodeInfo {
+        +Int id
+        +String code
+        +ActivationCodeStatus status
+        +DeviceType deviceType
+        +Int createdBy
+        +BoundUser boundUser
+        +BoundDevice boundDevice
+        +String boundAt
+        +String createdAt
+    }
+
+    class LatestFirmwareInfo {
+        +Int id
+        +String version
+        +DeviceType deviceType
+        +String originalName
+        +Int fileSize
+        +String checksum
+        +String changelog
+        +String createdAt
+        +String downloadUrl
+    }
+
+    class DEVICE_TYPE_MAP {
+        <<constant>>
+        infrared: {label:"红外", color:"primary", icon:"sensors"}
+        microwave: {label:"微波", color:"secondary", icon:"radar"}
+    }
+
+    DeviceType_TS --> DeviceInfo : deviceType
+    DeviceType_TS --> FirmwareVersionInfo : deviceType
+    DeviceType_TS --> ActivationCodeInfo : deviceType
+    DeviceType_TS --> LatestFirmwareInfo : deviceType
+    DEVICE_TYPE_MAP ..> DeviceType_TS : Record~DeviceType,~
+
+    %% ==================== 固件模块层 ====================
+    class Storage {
+        <<ESP32 NVS + LittleFS>>
+        +begin() void
+        +hasValidConfig() boolean
+        +saveDeviceToken(token: char*) boolean
+        +updateWifi(ssid: char*, pass: char*) boolean
+        +updateActivationCode(code: char*) boolean
+        +getDeviceToken() String
+        +getWifiSsid() String
+        +getWifiPass() String
+        +getActivationCode() String
+        +getFwVersion() String
+        +setFwVersion(ver: char*) boolean
+        +reset() void
+        +cacheOfflineEvent(status: char*, ts: uint32) boolean
+        +peekOfflineEvent(outStatus: String, outTs: uint32) boolean
+        +dropOfflineEvent() void
+        +offlineEventCount() size_t
+    }
+
+    class MicrowaveSensor {
+        +begin() void
+        +tick() boolean
+        +state() PirState
+        +isPresence() boolean
+        +resetDebounce() void
+        -isr() void IRAM_ATTR
+        -s_irqFlag: volatile bool
+        -s_state: PirState
+        -s_lastEdgeMs: uint32
+        -s_suppressUntilMs: uint32
+    }
+
+    class Reporter {
+        +reportStatus(status: char*) ReportResult
+        +sendHeartbeat() ReportResult
+        +activateDevice() ReportResult
+        +replayOfflineOnce() boolean
+        +isBusy() boolean
+        -doPost(path: char*, body: char*, token: char*, code: char*, outResp: String*) ReportResult
+    }
+
+    class OtaManager {
+        +begin() void
+        +tick() void
+        -checkAndUpdate() void
+        -compareVersions(a: String, b: String) int
+        -downloadAndApply(url: String, size: int) boolean
+        -s_lastCheckMs: uint32
+    }
+
+    class WifiManager {
+        +begin(ssid: char*, pass: char*) void
+        +tick() void
+        +isConnected() boolean
+        +enterApConfig() void
+        +exitApConfig() void
+        +applyNewCredentials(ssid: char*, pass: char*) boolean
+        +state() WifiState
+    }
+
+    class LedIndicator {
+        +begin() void
+        +tick() void
+        +setState(state: LedState) void
+        +pulse(durationMs: uint32) void
+        -neoPixel: Adafruit_NeoPixel
+    }
+
+    class Heartbeat {
+        +begin() void
+        +tick() void
+        +reset() void
+    }
+
+    %% 固件模块依赖
+    MicrowaveSensor --> Storage : 读取防抖参数
+    Reporter --> Storage : 读取 token/wifi
+    Reporter --> WifiManager : 检查连接状态
+    OtaManager --> Storage : 读取/写入版本号
+    OtaManager --> Reporter : 复用 HTTPClient
+    Heartbeat --> Reporter : 发送心跳
+    WifiManager --> Storage : 保存 WiFi 凭据

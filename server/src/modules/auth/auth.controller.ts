@@ -155,3 +155,17 @@ export async function bindEmailHandler(
     handleBusinessError(reply, err);
   }
 }
+
+/** 解绑 OIDC 认证（QQ 一键登录） */
+export async function unbindOidcHandler(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const userId = request.user.id;
+    const user = await authService.unbindOidc(userId);
+    success(reply, { user }, 'OIDC 解绑成功');
+  } catch (err: any) {
+    handleBusinessError(reply, err);
+  }
+}

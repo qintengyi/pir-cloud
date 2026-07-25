@@ -10,6 +10,7 @@ export const generateCodesSchema = {
     properties: {
       count: { type: 'integer', minimum: 1, maximum: 500 },
       prefix: { type: 'string', minLength: 1, maxLength: 10 },
+      deviceType: { type: 'string', enum: ['infrared', 'microwave'], default: 'infrared' },
     },
   },
 };
@@ -20,6 +21,7 @@ export const listCodesSchema = {
     type: 'object',
     properties: {
       status: { type: 'string', enum: ['unused', 'bound', 'disabled'] },
+      deviceType: { type: 'string', enum: ['infrared', 'microwave'] },
       page: { type: 'integer', minimum: 1, default: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -32,6 +34,7 @@ export const exportCodesSchema = {
     type: 'object',
     properties: {
       status: { type: 'string', enum: ['unused', 'bound', 'disabled'] },
+      deviceType: { type: 'string', enum: ['infrared', 'microwave'] },
     },
   },
 };

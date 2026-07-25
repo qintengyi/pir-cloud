@@ -9,6 +9,7 @@ export const listAlarmsSchema = {
     properties: {
       deviceId: { type: 'integer' },
       type: { type: 'string', enum: ['online', 'offline', 'alarm'] },
+      deviceType: { type: 'string', enum: ['infrared', 'microwave'] },
       startDate: { type: 'string', format: 'date-time' },
       endDate: { type: 'string', format: 'date-time' },
       page: { type: 'integer', minimum: 1, default: 1 },

@@ -19,15 +19,17 @@ import {
   DialogActions,
   IconButton,
   Alert,
+  Chip,
 } from '@mui/material';
-import { Add as AddIcon, Download as DownloadIcon, Block as BlockIcon } from '@mui/icons-material';
+import { Add as AddIcon, Download as DownloadIcon, Block as BlockIcon, Sensors as SensorsIcon, Radar as RadarIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import StatusBadge from '../../components/common/StatusBadge';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
-import { ACTIVATION_CODE_STATUS_MAP } from '../../utils/constants';
+import { ACTIVATION_CODE_STATUS_MAP, DEVICE_TYPE_MAP } from '../../utils/constants';
 import { formatDateTime } from '../../utils/format';
 import * as adminApi from '../../api/admin.api';
+import type { DeviceType } from '../../types';
 
 export default function ActivationCodesPage() {
   const queryClient = useQueryClient();
@@ -36,13 +38,16 @@ export default function ActivationCodesPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState('');
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState('');
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generateCount, setGenerateCount] = useState(10);
+  const [generateDeviceType, setGenerateDeviceType] = useState<DeviceType>('infrared');
   const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
   const [disableId, setDisableId] = useState<number | null>(null);
 
   const queryParams: any = { page: page + 1, pageSize };
   if (statusFilter) queryParams.status = statusFilter;
+  if (deviceTypeFilter) queryParams.deviceType = deviceTypeFilter;
 
   const { data, isLoading } = useQuery({
     queryKey: ['activationCodes', queryParams],
@@ -50,8 +55,8 @@ export default function ActivationCodesPage() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: ({ count, prefix }: { count: number; prefix?: string }) =>
-      adminApi.generateActivationCodes(count, prefix),
+    mutationFn: ({ count, prefix, deviceType }: { count: number; prefix?: string; deviceType: DeviceType }) =>
+      adminApi.generateActivationCodes(count, prefix, deviceType),
     onSuccess: (data) => {
       setGeneratedCodes(data.codes);
       queryClient.invalidateQueries({ queryKey: ['activationCodes'] });
@@ -71,7 +76,10 @@ export default function ActivationCodesPage() {
   });
 
   const handleExport = () => {
-    const url = adminApi.exportActivationCodesUrl(statusFilter || undefined);
+    const exportParams: { status?: string; deviceType?: DeviceType } = {};
+    if (statusFilter) exportParams.status = statusFilter;
+    if (deviceTypeFilter) exportParams.deviceType = deviceTypeFilter as DeviceType;
+    const url = adminApi.exportActivationCodesUrl(exportParams);
     const token = localStorage.getItem('pir_cloud_access_token');
 
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -106,7 +114,7 @@ export default function ActivationCodesPage() {
       </Box>
 
       <Card sx={{ borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, display: 'flex', gap: 2 }}>
           <TextField
             select
             size="small"
@@ -120,6 +128,18 @@ export default function ActivationCodesPage() {
             <MenuItem value="bound">已绑定</MenuItem>
             <MenuItem value="disabled">已禁用</MenuItem>
           </TextField>
+          <TextField
+            select
+            size="small"
+            label="设备类型"
+            value={deviceTypeFilter}
+            onChange={(e) => { setDeviceTypeFilter(e.target.value); setPage(0); }}
+            sx={{ width: 140 }}
+          >
+            <MenuItem value="">全部</MenuItem>
+            <MenuItem value="infrared">红外</MenuItem>
+            <MenuItem value="microwave">微波</MenuItem>
+          </TextField>
         </Box>
 
         <TableContainer>
@@ -127,6 +147,7 @@ export default function ActivationCodesPage() {
             <TableHead>
               <TableRow sx={{ backgroundColor: 'grey.50' }}>
                 <TableCell>激活码</TableCell>
+                <TableCell>设备类型</TableCell>
                 <TableCell>状态</TableCell>
                 <TableCell>绑定用户</TableCell>
                 <TableCell>绑定设备</TableCell>
@@ -138,6 +159,15 @@ export default function ActivationCodesPage() {
               {codes.map((code) => (
                 <TableRow key={code.id} hover>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{code.code}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      icon={code.deviceType === 'microwave' ? <RadarIcon /> : <SensorsIcon />}
+                      label={DEVICE_TYPE_MAP[code.deviceType]?.label || code.deviceType}
+                      color={DEVICE_TYPE_MAP[code.deviceType]?.color || 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={code.status} map={ACTIVATION_CODE_STATUS_MAP} />
                   </TableCell>
@@ -181,10 +211,21 @@ export default function ActivationCodesPage() {
                 onChange={(e) => setGenerateCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
                 sx={{ mb: 2 }}
               />
+              <TextField
+                select
+                fullWidth
+                label="设备类型"
+                value={generateDeviceType}
+                onChange={(e) => setGenerateDeviceType(e.target.value as DeviceType)}
+                sx={{ mb: 2 }}
+              >
+                <MenuItem value="infrared">红外</MenuItem>
+                <MenuItem value="microwave">微波</MenuItem>
+              </TextField>
               <Button
                 variant="contained"
                 fullWidth
-                onClick={() => generateMutation.mutate({ count: generateCount })}
+                onClick={() => generateMutation.mutate({ count: generateCount, deviceType: generateDeviceType })}
                 disabled={generateMutation.isPending}
               >
                 {generateMutation.isPending ? '生成中...' : '确认生成'}

@@ -80,7 +80,7 @@ export const config = {
   alist: {
     baseUrl: process.env.ALIST_BASE_URL || 'https://alist.xiaoyyua.top',
     apiToken: process.env.ALIST_API_TOKEN || 'openlist-80a43f35-c303-4d62-bd76-9e23d29833a5rn1vyTvIn2a06fEOaaUtdGMwXUReL3sW6gO6fobKMNrmRufbIAHPpY8ZIJJrFLM0',
-    firmwareBasePath: process.env.ALIST_FIRMWARE_PATH || '/S3-Rainyun-18376752486(11323)/alist1/guest/pir_download',
+    firmwareBasePath: process.env.ALIST_FIRMWARE_PATH || '/S3-Rainyun-18376752486(11323)/alist1/pir_download',
   },
 
   web: {

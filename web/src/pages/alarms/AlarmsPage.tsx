@@ -30,6 +30,7 @@ export default function AlarmsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [deviceId, setDeviceId] = useState('');
   const [type, setType] = useState('');
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -43,6 +44,7 @@ export default function AlarmsPage() {
   };
   if (deviceId) queryParams.deviceId = parseInt(deviceId, 10);
   if (type) queryParams.type = type;
+  if (deviceTypeFilter) queryParams.deviceType = deviceTypeFilter;
   if (startDate) queryParams.startDate = startDate;
   if (endDate) queryParams.endDate = endDate;
 
@@ -89,6 +91,20 @@ export default function AlarmsPage() {
                 <MenuItem value="online">上线</MenuItem>
                 <MenuItem value="offline">离线</MenuItem>
                 <MenuItem value="alarm">告警</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="设备类型"
+                value={deviceTypeFilter}
+                onChange={(e) => setDeviceTypeFilter(e.target.value)}
+              >
+                <MenuItem value="">全部类型</MenuItem>
+                <MenuItem value="infrared">红外</MenuItem>
+                <MenuItem value="microwave">微波</MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6} md={2}>

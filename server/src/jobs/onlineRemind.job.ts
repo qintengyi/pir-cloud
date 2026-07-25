@@ -60,6 +60,7 @@ async function maybeRemind(
     id: number;
     user_id: number;
     name: string;
+    device_type: string;
     config: { online_remind_interval_minutes: number; last_online_remind_at: Date | null } | null;
   },
   now: Date,
@@ -118,7 +119,7 @@ async function maybeRemind(
 
     setImmediate(() => {
       NotificationService.dispatch(
-        { id: device.id, name: device.name, user_id: device.user_id },
+        { id: device.id, name: device.name, user_id: device.user_id, device_type: device.device_type },
         { id: event.id, type: event.type, detail: event.detail, created_at: event.created_at },
       ).catch((err) => {
         logger.error({ err, deviceId: device.id }, 'Online remind notification dispatch failed');

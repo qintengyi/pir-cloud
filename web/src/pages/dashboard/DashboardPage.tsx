@@ -122,7 +122,7 @@ export default function DashboardPage() {
           <EmptyState
             icon={<DevicesIcon sx={{ fontSize: 48 }} />}
             title="绑定你的第一台设备"
-            description="输入激活码即可绑定红外感应设备，开始接收告警通知"
+            description="输入激活码即可绑定人体检测设备，开始接收告警通知"
             actionText="去绑定设备"
             onAction={() => setBindDialogOpen(true)}
           />

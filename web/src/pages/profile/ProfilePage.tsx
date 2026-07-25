@@ -23,10 +23,11 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/auth.store';
 import { useToast } from '../../hooks/useToast';
-import { MEMBERSHIP_MAP, BOT_QQ } from '../../utils/constants';
+import { MEMBERSHIP_MAP, BOT_QQ, OIDC_BIND_URL } from '../../utils/constants';
 import { formatDateTime } from '../../utils/format';
 import * as userApi from '../../api/user.api';
 import * as qqVerifyApi from '../../api/qq-verify.api';
+import { unbindOidc } from '../../api/auth.api';
 import { ApiError } from '../../api/client';
 import MembershipUpgradeDialog from '../../components/profile/MembershipUpgradeDialog';
 
@@ -58,7 +59,19 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['membership'] });
       showSuccess('支付成功，会员已开通');
     }
-  }, [searchParams, queryClient, showSuccess, updateUser]);
+
+    // 处理 OIDC 绑定回调结果
+    const oidcBindStatus = searchParams.get('oidc_bind');
+    if (oidcBindStatus === 'success') {
+      userApi.getProfile().then((data) => {
+        updateUser(data.user);
+      }).catch(() => {});
+      showSuccess('OIDC 绑定成功');
+    } else if (oidcBindStatus === 'error') {
+      const msg = searchParams.get('msg') || '绑定失败';
+      showError(msg);
+    }
+  }, [searchParams, queryClient, showSuccess, showError, updateUser]);
 
   const { data: membershipData } = useQuery({
     queryKey: ['membership'],
@@ -143,6 +156,15 @@ export default function ProfilePage() {
     onError: (err: any) => {
       setQqVerifyError(err.message || '获取验证码失败');
     },
+  });
+
+  const unbindOidcMutation = useMutation({
+    mutationFn: () => unbindOidc(),
+    onSuccess: (data) => {
+      updateUser(data.user);
+      showSuccess('OIDC 解绑成功');
+    },
+    onError: (err: any) => showError(err.message || '解绑失败'),
   });
 
   const handleNicknameSave = () => {
@@ -423,6 +445,54 @@ export default function ProfilePage() {
             >
               {changePasswordMutation.isPending ? '修改中...' : '修改密码'}
             </Button>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card sx={{ p: 3, borderRadius: '12px' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <SecurityIcon color="primary" />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                QQ 认证
+              </Typography>
+            </Box>
+            {user?.oidcSub ? (
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label="已绑定" color="success" size="small" />
+                  <Typography variant="body2" color="text.secondary">
+                    可使用 QQ 一键登录本账号
+                  </Typography>
+                </Box>
+                <Alert severity="info" sx={{ borderRadius: '8px' }}>
+                  解绑后将无法使用 QQ 一键登录，请确保您仍可通过邮箱密码登录。
+                </Alert>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  fullWidth
+                  onClick={() => unbindOidcMutation.mutate()}
+                  disabled={unbindOidcMutation.isPending}
+                >
+                  {unbindOidcMutation.isPending ? '解绑中...' : '解绑 QQ 认证'}
+                </Button>
+              </Stack>
+            ) : (
+              <Stack spacing={2}>
+                <Typography variant="body2" color="text.secondary">
+                  绑定后可使用 QQ 一键登录本账号，绑定后也可随时解绑。
+                </Typography>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={() => {
+                    window.location.href = OIDC_BIND_URL;
+                  }}
+                >
+                  绑定 QQ 认证
+                </Button>
+              </Stack>
+            )}
           </Card>
         </Grid>
       </Grid>

@@ -1,10 +1,12 @@
 import apiClient from './client';
-import type { ApiResponse, PaginatedData, DeviceInfo, DeviceDetail, DeviceConfig } from '../types';
+import type { ApiResponse, PaginatedData, DeviceInfo, DeviceDetail, DeviceConfig, DeviceType } from '../types';
 
 /** 设备列表 */
-export async function listDevices(page: number = 1, pageSize: number = 20) {
+export async function listDevices(page: number = 1, pageSize: number = 20, deviceType?: DeviceType) {
+  const params: Record<string, any> = { page, pageSize };
+  if (deviceType) params.deviceType = deviceType;
   const res = await apiClient.get<ApiResponse<PaginatedData<DeviceInfo>>>('/devices', {
-    params: { page, pageSize },
+    params,
   });
   return res.data.data;
 }

@@ -84,13 +84,16 @@ export class ReportService {
     }
 
     const rssi = (data.extra?.rssi as number | undefined) ?? (data as any).rssi ?? null;
+    const alarmMessage = device.device_type === 'microwave'
+      ? '微波人体检测告警'
+      : '红外人体检测告警';
     const event = await prisma.event.create({
       data: {
         device_id: device.id,
         user_id: device.user_id,
         type: 'alarm',
         detail: {
-          message: '人体检测告警',
+          message: alarmMessage,
           report_data: {
             status: data.status,
             timestamp: data.timestamp || Date.now(),
@@ -109,6 +112,7 @@ export class ReportService {
           id: device.id,
           name: device.name,
           user_id: device.user_id,
+          device_type: device.device_type,
         },
         {
           id: event.id,
@@ -129,7 +133,7 @@ export class ReportService {
    * presence 上报时：未满 3 分钟则屏蔽；首次满 3 分钟时推送预热完成通知。
    */
   private async checkStableWarmup(
-    device: { id: number; user_id: number; name: string },
+    device: { id: number; user_id: number; name: string; device_type: string },
     config: { stable_warmup_started_at: Date | null; stable_warmup_completed_at: Date | null },
   ): Promise<'warming' | 'ready'> {
     if (!config.stable_warmup_started_at) {
@@ -164,7 +168,7 @@ export class ReportService {
 
       setImmediate(() => {
         NotificationService.dispatch(
-          { id: device.id, name: device.name, user_id: device.user_id },
+          { id: device.id, name: device.name, user_id: device.user_id, device_type: device.device_type },
           { id: event.id, type: event.type, detail: event.detail, created_at: event.created_at },
         ).catch((err) => {
           logger.error({ err, deviceId: device.id }, 'Stable warmup notification dispatch failed');
@@ -190,7 +194,7 @@ export class ReportService {
 
     const device = await prisma.device.findUnique({
       where: { device_token: deviceToken },
-      select: { id: true, user_id: true, name: true, status: true },
+      select: { id: true, user_id: true, name: true, status: true, device_type: true },
     });
 
     if (!device) {
@@ -239,7 +243,7 @@ export class ReportService {
 
       setImmediate(() => {
         NotificationService.dispatch(
-          { id: device.id, name: device.name, user_id: device.user_id },
+          { id: device.id, name: device.name, user_id: device.user_id, device_type: device.device_type },
           { id: onlineEvent.id, type: onlineEvent.type, detail: onlineEvent.detail, created_at: onlineEvent.created_at },
         ).catch((err) => {
           logger.error({ err, deviceId: device.id }, 'Online notification dispatch failed');
@@ -263,17 +267,17 @@ export class ReportService {
    * device_token 优先，activation_code fallback
    * @param deviceToken 设备 token
    * @param activationCode 激活码
-   * @returns 设备记录（含用户 ID 和名称），未找到返回 null
+   * @returns 设备记录（含用户 ID、名称和设备类型），未找到返回 null
    */
   private async validateDevice(
     deviceToken: string | undefined,
     activationCode: string | undefined,
-  ): Promise<{ id: number; user_id: number; name: string } | null> {
-    
+  ): Promise<{ id: number; user_id: number; name: string; device_type: string } | null> {
+
     if (deviceToken) {
       const device = await prisma.device.findUnique({
         where: { device_token: deviceToken },
-        select: { id: true, user_id: true, name: true },
+        select: { id: true, user_id: true, name: true, device_type: true },
       });
       return device;
     }
@@ -285,7 +289,7 @@ export class ReportService {
           id: true,
           status: true,
           device: {
-            select: { id: true, user_id: true, name: true },
+            select: { id: true, user_id: true, name: true, device_type: true },
           },
         },
       });

@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { adminFirmwareService } from './firmware.service';
 import { success, paginated } from '../../../utils/response';
+import type { DeviceType } from '../../../types';
 
 /**
  * 管理员 - 固件版本管理控制器
@@ -12,10 +13,11 @@ export async function uploadFirmwareHandler(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    // 使用 parts() 遍历所有字段，顺序无关（version/changelog/isLatest/file 可任意顺序）
+    // 使用 parts() 遍历所有字段，顺序无关（version/changelog/isLatest/deviceType/file 可任意顺序）
     let version: string | undefined;
     let changelog: string | undefined;
     let isLatest = false;
+    let deviceType: DeviceType = 'infrared';
     let fileBuffer: Buffer | null = null;
     let fileFilename: string | undefined;
 
@@ -38,6 +40,7 @@ export async function uploadFirmwareHandler(
         if (part.fieldname === 'version') version = str;
         else if (part.fieldname === 'changelog') changelog = str;
         else if (part.fieldname === 'isLatest') isLatest = str === 'true' || str === '1';
+        else if (part.fieldname === 'deviceType' && (str === 'infrared' || str === 'microwave')) deviceType = str;
       }
     }
 
@@ -58,6 +61,7 @@ export async function uploadFirmwareHandler(
       changelog,
       isLatest,
       adminId,
+      deviceType,
     );
     success(reply, result, '上传成功');
   } catch (err: any) {
@@ -75,10 +79,10 @@ export async function listFirmwaresHandler(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    const query = request.query as { page?: string; pageSize?: string };
+    const query = request.query as { page?: string; pageSize?: string; deviceType?: DeviceType };
     const page = parseInt(query.page || '1', 10);
     const pageSize = parseInt(query.pageSize || '20', 10);
-    const result = await adminFirmwareService.listFirmwares(page, pageSize);
+    const result = await adminFirmwareService.listFirmwares(page, pageSize, query.deviceType);
     paginated(reply, result.list, result.total, result.page, result.pageSize);
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({

@@ -26,6 +26,9 @@ export type MembershipLevel = 'free' | 'premium';
 /** 通知渠道 */
 export type NotifyChannel = 'email' | 'qq_bot';
 
+/** 设备类型（红外/微波），全链路统一小写 */
+export type DeviceType = 'infrared' | 'microwave';
+
 /** 事件类型 */
 export type EventType = 'online' | 'offline' | 'alarm';
 
@@ -88,6 +91,7 @@ export interface DeviceInfo {
   name: string;
   deviceToken: string;
   status: DeviceStatus;
+  deviceType: DeviceType;
   lastReportAt: string | null;
   lastHeartbeatAt: string | null;
   createdAt: string;
@@ -129,6 +133,8 @@ export interface AlarmLog {
   createdAt: string;
   /** 关联设备名称（列表查询时附带） */
   deviceName?: string;
+  /** 设备类型（从 device join 获取，可选） */
+  deviceType?: DeviceType;
 }
 
 /** 告警统计 */
@@ -144,6 +150,7 @@ export interface ActivationCodeInfo {
   code: string;
   status: ActivationCodeStatus;
   createdBy: number;
+  deviceType: DeviceType;
   boundUser: { id: number; email: string; nickname: string } | null;
   boundDevice: { id: number; name: string } | null;
   boundAt: string | null;
@@ -221,6 +228,7 @@ export interface FirmwareVersionInfo {
   fileSize: number;
   checksum: string;
   isLatest: boolean;
+  deviceType: DeviceType;
   changelog: string | null;
   createdBy: number;
   createdByName: string | null;
@@ -235,6 +243,7 @@ export interface LatestFirmwareInfo {
   fileSize: number;
   checksum: string;
   changelog: string | null;
+  deviceType: DeviceType;
   createdAt: string;
   downloadUrl: string;
 }
