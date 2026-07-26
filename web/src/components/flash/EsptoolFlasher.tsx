@@ -82,9 +82,27 @@ export default function EsptoolFlasher({ deviceType, flashSize }: EsptoolFlasher
     log(`请选择 ${params.serialLabel}设备...`);
 
     try {
+      // 0. 如果有上一次未正确关闭的串口，先关闭
+      if (portRef.current) {
+        try { await portRef.current.close(); } catch {}
+        portRef.current = null;
+      }
+
       // 1. 请求串口（用户在浏览器弹窗中选择）
       const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 115200 });
+
+      // 如果端口已经打开（上次操作未正确关闭），先关闭再重新打开
+      try {
+        await port.open({ baudRate: 115200 });
+      } catch (openErr: any) {
+        if (openErr?.message?.includes('already open') || openErr?.name === 'InvalidStateError') {
+          log('检测到串口已打开，正在重新连接...');
+          try { await port.close(); } catch {}
+          await port.open({ baudRate: 115200 });
+        } else {
+          throw openErr;
+        }
+      }
       portRef.current = port;
       log(`串口已打开，正在连接 ${deviceType === 'microwave' ? 'ESP32-S3' : 'ESP8266'}...`);
 
@@ -169,22 +187,18 @@ export default function EsptoolFlasher({ deviceType, flashSize }: EsptoolFlasher
       // 关闭串口（释放设备）
       try {
         await transport.disconnect();
+      } catch {}
+      try {
         await port.close();
-      } catch {
-        // 忽略关闭错误
-      }
+      } catch {}
       portRef.current = null;
     } catch (err: any) {
       log(`✗ 错误: ${err?.message || String(err)}`);
       setStatus('error');
       showError(err?.message || '刷写失败');
-      // 尝试关闭串口
+      // 尝试关闭串口（确保下次可以重新打开）
       if (portRef.current) {
-        try {
-          await portRef.current.close();
-        } catch {
-          // ignore
-        }
+        try { await portRef.current.close(); } catch {}
         portRef.current = null;
       }
     }
