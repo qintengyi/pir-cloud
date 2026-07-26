@@ -91,20 +91,11 @@ export default function EsptoolFlasher({ deviceType, flashSize }: EsptoolFlasher
       // 1. 请求串口（用户在浏览器弹窗中选择）
       const port = await navigator.serial.requestPort();
 
-      // 如果端口已经打开（上次操作未正确关闭），先关闭再重新打开
-      try {
-        await port.open({ baudRate: 115200 });
-      } catch (openErr: any) {
-        if (openErr?.message?.includes('already open') || openErr?.name === 'InvalidStateError') {
-          log('检测到串口已打开，正在重新连接...');
-          try { await port.close(); } catch {}
-          await port.open({ baudRate: 115200 });
-        } else {
-          throw openErr;
-        }
-      }
+      // 如果端口已经被之前的会话打开，先关闭（esptool-js 会自己 open）
+      try { await port.close(); } catch {}
+
       portRef.current = port;
-      log(`串口已打开，正在连接 ${deviceType === 'microwave' ? 'ESP32-S3' : 'ESP8266'}...`);
+      log(`正在连接 ${deviceType === 'microwave' ? 'ESP32-S3' : 'ESP8266'}...`);
 
       // 2. 动态加载 esptool-js（按需加载，减小主包体积）
       const { ESPLoader, Transport } = await import('esptool-js');
@@ -123,7 +114,7 @@ export default function EsptoolFlasher({ deviceType, flashSize }: EsptoolFlasher
         debugLogging: false,
       });
 
-      // 3. 连接并识别芯片（会复位设备）
+      // 3. 连接并识别芯片（esptool-js 内部会 open 端口 + 复位设备）
       const chipName = await esploader.main();
       log(`已连接: ${chipName}`);
       if (!params.chipRegex.test(String(chipName))) {
