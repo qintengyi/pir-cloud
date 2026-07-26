@@ -12,7 +12,7 @@ interface AlistListResponse {
   code: number;
   message: string;
   data: {
-    content: Array<{ name: string; size: number; is_dir: boolean }> | null;
+    content: Array<{ name: string; size: number; is_dir: boolean; sign?: string }> | null;
     total: number;
   } | null;
 }
@@ -126,6 +126,45 @@ export class AlistService {
   }
 
   /**
+   * 下载文件内容（后端代理，带 Alist sign 鉴权）
+   * 替代 302 重定向方式，避免客户端直接访问 Alist 时 401
+   * @param filename 文件名（不含路径）
+   * @returns 文件 Buffer
+   */
+  async downloadFile(filename: string): Promise<Buffer> {
+    // 先列出文件获取 sign
+    const files = await this.listFiles();
+    const file = files.find((f) => f.name === filename);
+    if (!file) {
+      throw new Error(`Alist 文件不存在: ${filename}`);
+    }
+
+    // 构造带 sign 的下载 URL
+    let downloadUrl = `${this.baseUrl}/d${this.basePath}/${encodeURIComponent(filename)}`;
+    if (file.sign) {
+      downloadUrl += `?sign=${encodeURIComponent(file.sign)}`;
+    }
+
+    const response = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': this.apiToken,
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      logger.error({ status: response.status, body: text, filename, url: downloadUrl }, 'Alist download failed (HTTP error)');
+      const error = new Error(`Alist 文件下载失败: HTTP ${response.status}`);
+      (error as any).code = 5001;
+      (error as any).statusCode = 500;
+      throw error;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  /**
    * 检查文件是否存在于 Alist
    * @param filename 文件名（不含路径）
    * @returns 是否存在
@@ -139,7 +178,7 @@ export class AlistService {
    * 列出 Alist 固件目录下的所有文件
    * @returns 文件名列表
    */
-  async listFiles(): Promise<Array<{ name: string; size: number }>> {
+  async listFiles(): Promise<Array<{ name: string; size: number; sign?: string }>> {
     const response = await fetch(`${this.baseUrl}/api/fs/list`, {
       method: 'POST',
       headers: {
@@ -168,7 +207,7 @@ export class AlistService {
 
     return result.data.content
       .filter((item) => !item.is_dir)
-      .map((item) => ({ name: item.name, size: item.size }));
+      .map((item) => ({ name: item.name, size: item.size, sign: item.sign }));
   }
 }
 

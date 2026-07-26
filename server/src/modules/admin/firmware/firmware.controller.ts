@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { adminFirmwareService } from './firmware.service';
+import { alistService } from '../../alist/alist.service';
 import { success, paginated } from '../../../utils/response';
 import type { DeviceType } from '../../../types';
 
@@ -129,7 +130,7 @@ export async function deleteFirmwareHandler(
   }
 }
 
-/** 下载固件（管理员按 id 下载任意版本） */
+/** 下载固件（管理员按 id 下载任意版本，后端代理流式传输） */
 export async function downloadFirmwareHandler(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -142,13 +143,17 @@ export async function downloadFirmwareHandler(
       return;
     }
 
-    const { fullPath, exists } = await adminFirmwareService.resolveDiskPath(fw);
+    const exists = await alistService.fileExists(fw.disk_filename);
     if (!exists) {
       reply.status(404).send({ code: 4001, message: '固件文件不存在', data: null });
       return;
     }
 
-    reply.redirect(302, fullPath);
+    const buffer = await alistService.downloadFile(fw.disk_filename);
+    reply.header('Content-Type', 'application/octet-stream');
+    reply.header('Content-Disposition', `attachment; filename="${fw.original_name}"`);
+    reply.header('Content-Length', String(buffer.length));
+    reply.send(buffer);
   } catch (err: any) {
     reply.status(err.statusCode || 500).send({
       code: err.code || 5001,
